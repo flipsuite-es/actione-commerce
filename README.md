@@ -38,6 +38,7 @@ Cuando abras pasarela propia, ya lo harás con reputación, procesos y aislamien
 | [`docs/04-cumplimiento-legal-fiscal.md`](docs/04-cumplimiento-legal-fiscal.md) | GPSR, DAC7, IVA/recargo, RGPD, desistimiento. |
 | [`docs/05-operativa-sourcing-pricing-kpis.md`](docs/05-operativa-sourcing-pricing-kpis.md) | Compra de lotes, cálculo de margen real, hoja de control, KPIs de corte. |
 | [`docs/06-stack-tecnico-y-costes.md`](docs/06-stack-tecnico-y-costes.md) | Herramientas concretas y coste mensual mínimo. |
+| [`docs/08-plan-dominacion-mercado.md`](docs/08-plan-dominacion-mercado.md) | **Capa ofensiva:** cómo arrasar en un nicho sin romper las 3 reglas. |
 
 ---
 
