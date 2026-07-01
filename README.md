@@ -41,7 +41,8 @@ Cuando abras pasarela propia, ya lo harás con reputación, procesos y aislamien
 | [`docs/08-plan-dominacion-mercado.md`](docs/08-plan-dominacion-mercado.md) | **Capa ofensiva:** cómo arrasar en un nicho sin romper las 3 reglas. |
 | [`docs/09-analisis-nichos.md`](docs/09-analisis-nichos.md) | Investigación con datos: qué nicho elegir. **Ganador: organización del hogar/cocina.** |
 | [`docs/10-modelo-de-venta-y-fulfillment.md`](docs/10-modelo-de-venta-y-fulfillment.md) | **Cómo vendemos:** con/sin stock, envíos, devoluciones, kickoff del nicho. |
-| [`docs/11-inversion-inicial.md`](docs/11-inversion-inicial.md) | **Cuánto invertir:** desglose por fase. Validar 0-200 €, arrancar ~1.500 €. |
+| [`docs/11-inversion-inicial.md`](docs/11-inversion-inicial.md) | Desglose de inversión por fase (escenario con algo de capital). |
+| [`docs/12-arranque-capital-cero.md`](docs/12-arranque-capital-cero.md) | **PLAN DE ENTRADA ACTUAL:** arrancar desde ~0 € sin tocar tus ahorros, reinvirtiendo el 100 %. |
 
 ---
 
