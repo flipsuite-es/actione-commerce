@@ -1,0 +1,2 @@
+id_lote,proveedor,fecha_compra,coste_total,transporte,unidades_totales,unidades_A,unidades_B,unidades_C,merma_pct,coste_real_unitario,precio_objetivo,precio_minimo,canal_venta,comision_canal_pct,tiempo_medio_venta_dias,margen_neto_pct,incidencias,devoluciones_pct,disputas_pct,stock_restante_30d,stock_restante_60d,stock_restante_90d,notas
+L001,EJEMPLO-Merkandi,2026-07-01,1200,150,300,240,40,20,7,4.50,9.90,6.90,Wallapop,0,18,22,0,3,0.2,120,40,10,Lote de organizacion hogar; revisar CE en 5 refs
