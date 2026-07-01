@@ -39,6 +39,7 @@ Cuando abras pasarela propia, ya lo harás con reputación, procesos y aislamien
 | [`docs/05-operativa-sourcing-pricing-kpis.md`](docs/05-operativa-sourcing-pricing-kpis.md) | Compra de lotes, cálculo de margen real, hoja de control, KPIs de corte. |
 | [`docs/06-stack-tecnico-y-costes.md`](docs/06-stack-tecnico-y-costes.md) | Herramientas concretas y coste mensual mínimo. |
 | [`docs/08-plan-dominacion-mercado.md`](docs/08-plan-dominacion-mercado.md) | **Capa ofensiva:** cómo arrasar en un nicho sin romper las 3 reglas. |
+| [`docs/09-analisis-nichos.md`](docs/09-analisis-nichos.md) | Investigación con datos: qué nicho elegir. **Ganador: organización del hogar/cocina.** |
 
 ---
 
