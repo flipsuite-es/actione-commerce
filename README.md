@@ -43,6 +43,7 @@ Cuando abras pasarela propia, ya lo harás con reputación, procesos y aislamien
 | [`docs/10-modelo-de-venta-y-fulfillment.md`](docs/10-modelo-de-venta-y-fulfillment.md) | **Cómo vendemos:** con/sin stock, envíos, devoluciones, kickoff del nicho. |
 | [`docs/11-inversion-inicial.md`](docs/11-inversion-inicial.md) | Desglose de inversión por fase (escenario con algo de capital). |
 | [`docs/12-arranque-capital-cero.md`](docs/12-arranque-capital-cero.md) | **PLAN DE ENTRADA ACTUAL:** arrancar desde ~0 € sin tocar tus ahorros, reinvirtiendo el 100 %. |
+| [`docs/13-evaluacion-bisuteria.md`](docs/13-evaluacion-bisuteria.md) | **Evaluación de la bisutería de acero inox** que ya tienes: 33/40, ignición de capital 0. |
 
 ---
 
