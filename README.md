@@ -47,6 +47,7 @@ Cuando abras pasarela propia, ya lo harás con reputación, procesos y aislamien
 | [`docs/14-bisuteria-angulo-y-arranque.md`](docs/14-bisuteria-angulo-y-arranque.md) | **Ángulo de marca + arranque 30 días** para tu stock (elegante/dorado/perlas + regalo). |
 | [`docs/15-pricing-anillo-escenarios.md`](docs/15-pricing-anillo-escenarios.md) | **Pricing de chollo:** escenarios de precio de un anillo con margen neto real. |
 | [`docs/16-investigacion-joyeria.md`](docs/16-investigacion-joyeria.md) | **Investigación de joyería asequible:** mercado, competencia, posicionamiento recomendado. |
+| [`docs/17-gama-de-precio-decision.md`](docs/17-gama-de-precio-decision.md) | **¿Asequible o cara?** Decisión de gama: empezar asequible, escalar a demi-fine. |
 
 ---
 
