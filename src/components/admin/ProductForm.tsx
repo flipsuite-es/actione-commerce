@@ -26,6 +26,7 @@ interface PhotoCleanup {
   changes?: string[];
   note?: string;
   error?: string;
+  attempts?: number;
 }
 
 export default function ProductForm({
@@ -62,6 +63,7 @@ export default function ProductForm({
           safe: r.safe,
           changes: r.changes,
           note: r.note,
+          attempts: r.attempts,
         },
       }));
     } catch (err: any) {
@@ -458,10 +460,13 @@ export default function ProductForm({
                   disabled={cleanup[src]?.loading}
                   className="btn-outline px-2 py-1 text-xs disabled:opacity-50"
                 >
-                  {cleanup[src]?.loading ? `Foto ${i + 1}…` : `Foto ${i + 1}`}
+                  {cleanup[src]?.loading ? `Foto ${i + 1} (probando…)` : `Foto ${i + 1}`}
                 </button>
               ),
             )}
+            <span className="w-full text-[11px] text-muted/80">
+              Reintenta sola hasta que la auditoría la dé por fiel (puede tardar unos segundos).
+            </span>
           </div>
         )}
 
@@ -481,6 +486,7 @@ export default function ProductForm({
             <div key={src} className="mt-3 rounded border border-gold/20 p-3">
               <p className="text-xs font-medium text-ink-soft">
                 Foto {i + 1} — revisa antes de usar
+                {cl.attempts && cl.attempts > 1 ? ` · ${cl.attempts} intentos` : ""}
               </p>
               <div className="mt-2 grid grid-cols-2 gap-3">
                 <figure>

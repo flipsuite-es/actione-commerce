@@ -79,8 +79,10 @@ backoffice completos y funcionando.
      externo (**fal.ai / FLUX Kontext**, clave **`FAL_KEY`**). El prompt NO dice "quita el reflejo" (eso hacía que el
      modelo reinventara y apagara el metal), sino **«simula que se disparó dentro de una carpa/cartulina blanca»**: el
      metal refleja solo blanco limpio + brillos cálidos, manteniendo el dorado/plateado brillante, forma, tamaño y
-     acabado; sin gemas ni ocultar defectos. `guidance_scale` 2.5 (pegado a la foto original). OJO: la joya muy espejada
-     (gota pulida) es el peor caso; a menudo la foto original/del proveedor es mejor.
+     acabado; sin gemas ni ocultar defectos. `guidance_scale` 2.5 (pegado a la foto original). **Reintenta solo** (hasta
+     3 intentos con semilla distinta) hasta que la auditoría de Claude confirme que es fiel; si ninguno pasa, devuelve
+     el último con `safe=false` y recomienda usar la original. OJO: la joya muy espejada (gota pulida) es el peor caso
+     y a menudo NO se consigue una versión válida → usar la foto original/del proveedor. `maxDuration=60`.
   6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): procesado **determinista** con sharp (ajustes GLOBALES
      de luz/contraste/saturación/nitidez, como el "editar" del móvil). NO usa IA generativa: no inventa píxeles ni cambia
      forma/color/acabado → **nunca es publicidad engañosa**. Gratis, instantáneo, sin claves. Botón «Mejorar calidad» por

@@ -321,36 +321,17 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra):
   };
 }
 
-/** Quita el reflejo de una foto con IA y AUDITA el resultado (anti-publicidad
- *  engañosa): edita → guarda en nuestro Storage → Claude compara original vs
- *  editada y confirma que es el mismo producto y que solo cambió el reflejo.
- *  La original NUNCA se borra: el admin decide con las dos delante. */
-export async function cleanupPhoto(imageUrl: string): Promise<
-  | { ok: true; cleanedUrl: string; safe: boolean; changes: string[]; note: string }
-  | { ok: false; error: string }
-> {
-  const supabase = await requireAdmin();
-  if (!imageUrl) return { ok: false, error: "Sin imagen." };
-  if (!imageEditConfigured()) {
-    return {
-      ok: false,
-      error:
-        "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel para activar el borrado de reflejos.",
-    };
-  }
-
-  // 1) Editar: quitar el reflejo con el servicio externo (fal / FLUX Kontext).
-  const edited = await removeReflection(imageUrl);
+/** Edita una imagen (quita reflejo) y la guarda en NUESTRO Storage. Un intento. */
+async function editAndStore(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>,
+  imageUrl: string,
+  seed: number,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const edited = await removeReflection(imageUrl, { seed });
   if (!edited.ok) return { ok: false, error: edited.error };
-
-  // 2) Descargar la imagen editada (la URL de fal es temporal), optimizar y
-  //    guardarla en NUESTRO Storage.
-  let cleanedUrl: string;
   try {
     const resp = await fetch(edited.data);
-    if (!resp.ok) {
-      return { ok: false, error: `No se pudo descargar la imagen editada (${resp.status}).` };
-    }
+    if (!resp.ok) return { ok: false, error: `No se pudo descargar la imagen editada (${resp.status}).` };
     const inBuf = Buffer.from(await resp.arrayBuffer());
     let out = inBuf;
     let contentType = "image/jpeg";
@@ -372,16 +353,24 @@ export async function cleanupPhoto(imageUrl: string): Promise<
       .from(BUCKET)
       .upload(path, out, { contentType, upsert: false });
     if (error) return { ok: false, error: error.message };
-    cleanedUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    return { ok: true, url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl };
   } catch (err: any) {
     return { ok: false, error: err?.message || "No se pudo guardar la imagen editada." };
   }
+}
 
-  // 3) Auditoría anti-engaño: Claude compara original vs editada.
+/** Auditoría anti-engaño: Claude compara original vs editada. */
+async function auditEdit(
+  originalUrl: string,
+  editedUrl: string,
+): Promise<
+  | { ok: true; safe: boolean; changes: string[]; note: string }
+  | { ok: false; error: string }
+> {
   const system = `${BRAND_RULES}
 
 Eres el control ANTI-PUBLICIDAD-ENGAÑOSA de Oucy Studios. Te doy DOS fotos del mismo producto de joyería: la primera es la ORIGINAL y la segunda es una versión EDITADA por IA para quitarle el reflejo del fotógrafo.
-Comprueba que la EDITADA muestra EXACTAMENTE el mismo producto real que la original: misma forma, mismo tamaño y proporciones, mismo color y tipo de acabado (un acero color dorado debe verse igual, NO más brillante ni como oro real; un color plata igual), sin gemas añadidas, sin ocultar arañazos o defectos reales de la pieza. Lo ÚNICO que puede haber cambiado es el contenido del reflejo/entorno y quizá el fondo.
+Comprueba que la EDITADA muestra EXACTAMENTE el mismo producto real que la original: misma forma, mismo tamaño y proporciones, mismo color y tipo de acabado (un acero color dorado debe verse igual de brillante y pulido, NO mate ni apagado, NO más brillante ni como oro real; un color plata igual), sin manchas nuevas, sin gemas añadidas, sin ocultar arañazos o defectos reales de la pieza. Lo ÚNICO que puede haber cambiado es el contenido del reflejo/entorno y quizá el fondo.
 Devuelve EXCLUSIVAMENTE un JSON:
 {"same_product": true, "only_reflection_changed": true, "changes": [], "safe_to_use": true, "note": "..."}
 - "changes": lista breve en español de cualquier diferencia que afecte al PRODUCTO (vacía si solo cambió el reflejo/fondo).
@@ -401,26 +390,16 @@ Devuelve EXCLUSIVAMENTE un JSON:
         role: "user",
         content: [
           { type: "text", text: "ORIGINAL:" },
-          imageBlock(imageUrl),
+          imageBlock(originalUrl),
           { type: "text", text: "EDITADA:" },
-          imageBlock(cleanedUrl),
+          imageBlock(editedUrl),
           { type: "text", text: "Devuelve el JSON de auditoría." },
         ],
       },
     ],
   });
+  if (!audit.ok) return { ok: false, error: audit.error };
 
-  // Si la auditoría falla (p. ej. sin clave de Claude), devolvemos la imagen
-  // pero SIN verificar (safe=false) para que el admin decida mirándola.
-  if (!audit.ok) {
-    return {
-      ok: true,
-      cleanedUrl,
-      safe: false,
-      changes: ["No se pudo auditar automáticamente; compárala tú antes de usarla."],
-      note: "",
-    };
-  }
   const changes = Array.isArray(audit.data.changes)
     ? audit.data.changes.map((c) => String(c)).filter(Boolean).slice(0, 5)
     : [];
@@ -429,7 +408,77 @@ Devuelve EXCLUSIVAMENTE un JSON:
     audit.data.safe_to_use === true &&
     audit.data.only_reflection_changed !== false &&
     changes.length === 0;
-  return { ok: true, cleanedUrl, safe, changes, note: String(audit.data.note || "") };
+  return { ok: true, safe, changes, note: String(audit.data.note || "") };
+}
+
+/** Quita el reflejo de una foto con IA y AUDITA el resultado (anti-publicidad
+ *  engañosa). REINTENTA automáticamente (hasta `MAX_ATTEMPTS`) hasta que la
+ *  auditoría confirme que es fiel; si ninguno pasa, devuelve el último con
+ *  `safe=false` y recomienda usar la original. La original NUNCA se borra. */
+export async function cleanupPhoto(imageUrl: string): Promise<
+  | {
+      ok: true;
+      cleanedUrl: string;
+      safe: boolean;
+      changes: string[];
+      note: string;
+      attempts: number;
+    }
+  | { ok: false; error: string }
+> {
+  const supabase = await requireAdmin();
+  if (!imageUrl) return { ok: false, error: "Sin imagen." };
+  if (!imageEditConfigured()) {
+    return {
+      ok: false,
+      error:
+        "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel para activar el borrado de reflejos.",
+    };
+  }
+
+  const MAX_ATTEMPTS = 3;
+  let last:
+    | { cleanedUrl: string; safe: boolean; changes: string[]; note: string }
+    | null = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const seed = Math.floor(Math.random() * 1_000_000_000);
+    const stored = await editAndStore(supabase, imageUrl, seed);
+    if (!stored.ok) {
+      if (last) break; // ya tenemos algo previo; cortamos
+      return { ok: false, error: stored.error };
+    }
+
+    const audit = await auditEdit(imageUrl, stored.url);
+    // Sin auditoría (p. ej. falta ANTHROPIC_API_KEY) no podemos verificar y
+    // reintentar no aporta: devolvemos sin verificar para que decida el admin.
+    if (!audit.ok) {
+      return {
+        ok: true,
+        cleanedUrl: stored.url,
+        safe: false,
+        changes: ["No se pudo auditar automáticamente (falta ANTHROPIC_API_KEY); compárala tú."],
+        note: "",
+        attempts: attempt,
+      };
+    }
+
+    last = { cleanedUrl: stored.url, safe: audit.safe, changes: audit.changes, note: audit.note };
+    if (audit.safe) {
+      return { ok: true, ...last, attempts: attempt };
+    }
+  }
+
+  // Ningún intento pasó la auditoría: devolvemos el último con aviso claro.
+  return {
+    ok: true,
+    cleanedUrl: last!.cleanedUrl,
+    safe: false,
+    changes: last!.changes,
+    note:
+      "Tras varios intentos la IA no logró una versión que respete el acabado de esta pieza. Para esta foto, usa la original o la del proveedor.",
+    attempts: MAX_ATTEMPTS,
+  };
 }
 
 /** Copiloto interno del panel: responde sobre el estado de la tienda y redacta

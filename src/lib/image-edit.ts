@@ -27,8 +27,12 @@ const REFLECTION_PROMPT =
   "CRITICAL — keep the metal itself EXACTLY the same: a bright, warm, highly polished mirror gold-tone (or silver-tone) finish. Do NOT dull, darken, desaturate, matte, tarnish or muddy it; do NOT add green, grey, brown or dirty tones. " +
   "Preserve EXACTLY the piece's shape, size and proportions, the warm sunlight and shadows, and the white pillow and background. Do NOT add gemstones and do NOT hide real scratches or dents. Photorealistic, minimal surgical edit — only the reflected content on the metal becomes clean white.";
 
-/** Devuelve la URL (temporal, de fal) de la imagen sin reflejo. */
-export async function removeReflection(imageUrl: string): Promise<AiResult<string>> {
+/** Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
+ *  `seed` opcional: varíala entre reintentos para obtener resultados distintos. */
+export async function removeReflection(
+  imageUrl: string,
+  opts: { seed?: number } = {},
+): Promise<AiResult<string>> {
   const key = process.env.FAL_KEY;
   if (!key) {
     return {
@@ -53,6 +57,7 @@ export async function removeReflection(imageUrl: string): Promise<AiResult<strin
         num_inference_steps: 32,
         safety_tolerance: "2",
         output_format: "jpeg",
+        ...(opts.seed != null ? { seed: opts.seed } : {}),
       }),
     });
     if (!res.ok) {
