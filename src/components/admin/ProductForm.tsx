@@ -7,6 +7,7 @@ import {
   suggestProduct,
   checkPhoto,
   cleanupPhoto,
+  enhancePhoto,
 } from "@/app/admin/actions";
 import type { Category, Product, Supplier } from "@/lib/types";
 
@@ -89,6 +90,48 @@ export default function ProductForm({
 
   function dismissCleanup(url: string) {
     setCleanup((prev) => {
+      const next = { ...prev };
+      delete next[url];
+      return next;
+    });
+  }
+
+  // Mejora de calidad (luz/contraste/nitidez), determinista, por URL original.
+  const [enhance, setEnhance] = useState<
+    Record<string, { loading?: boolean; url?: string; error?: string }>
+  >({});
+
+  async function runEnhance(url: string) {
+    setEnhance((prev) => ({ ...prev, [url]: { loading: true } }));
+    try {
+      const r = await enhancePhoto(url);
+      if (!r.ok) setEnhance((prev) => ({ ...prev, [url]: { error: r.error } }));
+      else setEnhance((prev) => ({ ...prev, [url]: { url: r.url } }));
+    } catch (err: any) {
+      setEnhance((prev) => ({
+        ...prev,
+        [url]: { error: err?.message || "No se pudo mejorar la foto." },
+      }));
+    }
+  }
+
+  function useEnhanced(originalUrl: string, newUrl: string) {
+    setImages((prev) => prev.map((u) => (u === originalUrl ? newUrl : u)));
+    setEnhance((prev) => {
+      const next = { ...prev };
+      delete next[originalUrl];
+      return next;
+    });
+    setQc((prev) => {
+      const next = { ...prev };
+      delete next[originalUrl];
+      return next;
+    });
+    runCheck(newUrl);
+  }
+
+  function dismissEnhance(url: string) {
+    setEnhance((prev) => {
       const next = { ...prev };
       delete next[url];
       return next;
@@ -328,6 +371,79 @@ export default function ProductForm({
             </p>
           </div>
         )}
+
+        {/* Mejorar calidad (luz/contraste/nitidez): siempre disponible, sin claves */}
+        {images.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+            <span>✨ Mejorar calidad (luz, contraste, nitidez):</span>
+            {images.map((src, i) =>
+              enhance[src]?.url ? null : (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => runEnhance(src)}
+                  disabled={enhance[src]?.loading}
+                  className="btn-outline px-2 py-1 text-xs disabled:opacity-50"
+                >
+                  {enhance[src]?.loading ? `Foto ${i + 1}…` : `Foto ${i + 1}`}
+                </button>
+              ),
+            )}
+          </div>
+        )}
+
+        {/* Paneles de mejora de calidad (antes/después) */}
+        {images.map((src, i) => {
+          const en = enhance[src];
+          if (!en) return null;
+          if (en.error) {
+            return (
+              <p key={src} className="mt-2 text-xs text-red-600">
+                Foto {i + 1}: {en.error}
+              </p>
+            );
+          }
+          if (!en.url) return null;
+          return (
+            <div key={src} className="mt-3 rounded border border-gold/20 p-3">
+              <p className="text-xs font-medium text-ink-soft">
+                Foto {i + 1} — mejora de calidad
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <figure>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="antes" className="w-full border border-gold/20" />
+                  <figcaption className="mt-1 text-center text-[11px] text-muted">Antes</figcaption>
+                </figure>
+                <figure>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={en.url} alt="después" className="w-full border border-gold/20" />
+                  <figcaption className="mt-1 text-center text-[11px] text-muted">Después</figcaption>
+                </figure>
+              </div>
+              <p className="mt-2 text-xs text-muted">
+                Solo ajusta luz, contraste, color y nitidez de forma global. No cambia
+                la forma, el color ni el acabado del producto.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => useEnhanced(src, en.url!)}
+                  className="btn-gold text-sm"
+                >
+                  Usar la mejorada
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissEnhance(src)}
+                  className="text-sm text-muted hover:text-gold-3"
+                >
+                  Quedarme con la original
+                </button>
+              </div>
+            </div>
+          );
+        })}
 
         {/* Quitar reflejo con IA: disponible para cualquier foto (si hay FAL_KEY) */}
         {imageEditEnabled && images.length > 0 && (

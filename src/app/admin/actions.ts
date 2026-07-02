@@ -461,6 +461,42 @@ ${JSON.stringify(snapshot)}`;
   return { ok: true, text: r.data };
 }
 
+/** Mejora la CALIDAD de la foto sin tocar el producto: ajustes globales de luz,
+ *  contraste, nitidez y un punto de color (como el "editar" del móvil). Es
+ *  procesado determinista (sharp), NO IA generativa: no inventa píxeles ni
+ *  cambia forma/color/acabado → nunca es publicidad engañosa. Sin claves. */
+export async function enhancePhoto(
+  imageUrl: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const supabase = await requireAdmin();
+  if (!imageUrl) return { ok: false, error: "Sin imagen." };
+  try {
+    const resp = await fetch(imageUrl);
+    if (!resp.ok) return { ok: false, error: `No se pudo leer la imagen (${resp.status}).` };
+    const inBuf = Buffer.from(await resp.arrayBuffer());
+    const sharp = (await import("sharp")).default;
+    const out = await sharp(inBuf)
+      .rotate()
+      .resize(1400, 1400, { fit: "cover", position: "centre" })
+      // Ajustes GLOBALES (no cambian el producto): un poco más de luz, algo de
+      // contraste, un toque de saturación y nitidez.
+      .modulate({ brightness: 1.06, saturation: 1.05 })
+      .linear(1.08, -10)
+      .sharpen()
+      .webp({ quality: 88 })
+      .toBuffer();
+    const path = `products/enh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, out, { contentType: "image/webp", upsert: false });
+    if (error) return { ok: false, error: error.message };
+    const url = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    return { ok: true, url };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "No se pudo mejorar la foto." };
+  }
+}
+
 /* ---------------- Proveedores ---------------- */
 
 export async function saveSupplier(formData: FormData) {
