@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CartProvider } from "@/lib/cart";
+import { WishlistProvider } from "@/lib/wishlist";
+import { ToastProvider } from "@/lib/toast";
+import AnnouncementBar from "@/components/AnnouncementBar";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CartDrawer from "@/components/CartDrawer";
@@ -16,21 +19,25 @@ export default async function StoreLayout({
 }) {
   const settings = await getSettings();
 
-  // Muro de pre-lanzamiento
   if (settings.prelaunch_enabled) {
     const granted = cookies().get(ACCESS_COOKIE)?.value === ACCESS_VALUE;
     if (!granted) redirect("/acceso");
   }
 
   return (
-    <CartProvider>
-      <SiteHeader announcement={settings.announcement || undefined} />
-      <main className="mx-auto min-h-[60vh] max-w-6xl px-5">{children}</main>
-      <SiteFooter />
-      <CartDrawer
-        freeShipThreshold={settings.free_ship_threshold}
-        shippingFlat={settings.shipping_flat}
-      />
-    </CartProvider>
+    <ToastProvider>
+      <WishlistProvider>
+        <CartProvider>
+          <AnnouncementBar text={settings.announcement || undefined} />
+          <SiteHeader />
+          <main className="min-h-[60vh]">{children}</main>
+          <SiteFooter />
+          <CartDrawer
+            freeShipThreshold={settings.free_ship_threshold}
+            shippingFlat={settings.shipping_flat}
+          />
+        </CartProvider>
+      </WishlistProvider>
+    </ToastProvider>
   );
 }
