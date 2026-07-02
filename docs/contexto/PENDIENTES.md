@@ -56,6 +56,9 @@
 > Base ya montada: capa `src/lib/ai.ts` + `ANTHROPIC_API_KEY`. Añadir funciones nuevas es fácil.
 - [x] ✅ Ficha de producto desde la foto (nombre, descripción, material, categoría, **precio**).
 - [x] ✅ **Asistente de reposición** (`/admin/reposicion`): stock bajo agrupado por proveedor + correo de pedido con IA.
+- [x] ✅ **Control de calidad de foto** (al subir): avisa de reflejos/fondo/enfoque antes de publicar. No edita la foto.
+- [ ] (Opcional) **Borrado automático de reflejos**: requiere servicio de edición IA externo (otra clave + coste por
+      imagen; puede deformar el acabado espejo). Alternativas sin coste: foto del proveedor o cartulina con agujero.
 - [ ] **Borrador de respuestas de soporte con IA**: botón «Redactar con IA» en el hilo del ticket (tono de marca).
 - [ ] **Copiloto del panel**: chat interno que responde sobre la tienda (stock bajo, pedidos de la semana, tareas
       pendientes) y redacta textos/correos. (Requiere darle contexto resumido de la DB.)

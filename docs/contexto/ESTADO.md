@@ -70,6 +70,12 @@ backoffice completos y funcionando.
   1. **Ficha de producto desde la foto** (`suggestProduct`): nombre, descripción, material, categoría y precio.
   2. **Asistente de reposición** (`/admin/reposicion` + `draftRestock`): agrupa las piezas con stock bajo por proveedor
      y **redacta el correo de pedido** a cada proveedor; el admin lo edita, copia o abre en el correo (`mailto`).
+  3. **Control de calidad de foto** (`checkPhoto` + `ProductForm`): al subir cada foto, Claude visión la revisa y
+     **avisa de reflejos** (fotógrafo/móvil/persona en la joya pulida), fondo sucio, desenfoque o mal encuadre, antes de
+     publicar. Marca la miniatura con borde rojo + ⚠ y lista los fallos. NO edita la foto (Claude es visión, no genera
+     píxeles). Nota de producto: para fotos limpias se recomienda **usar la foto del proveedor** o la técnica de la
+     cartulina blanca con agujero para el objetivo. El borrado automático de reflejos exigiría un servicio de edición
+     externo (coste + riesgo de deformar el acabado espejo) → no implementado por ahora.
 - **Multi-proveedor** (migración **011**): tabla `suppliers` (nombre, contacto, email, teléfono, web, notas, plazo,
   pedido mínimo, activo; RLS solo `is_admin`) + `products.supplier_id` (FK). CRUD en **`/admin/proveedores`**. La ficha
   de producto tiene selector de proveedor + ref. Sembrado **Smile Joyas** como proveedor inicial. Pensado para crecer a

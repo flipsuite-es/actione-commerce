@@ -260,6 +260,65 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra) con
   };
 }
 
+/** Control de calidad de foto de producto (visión IA). Detecta sobre todo
+ *  reflejos del fotógrafo/móvil/persona en la joya pulida, y otros fallos que
+ *  la harían poco vendible. NO edita la foto: solo avisa antes de publicar. */
+export async function checkPhoto(imageUrl: string): Promise<
+  | {
+      ok: true;
+      publishable: boolean;
+      reflection: boolean;
+      problems: string[];
+      note: string;
+    }
+  | { ok: false; error: string }
+> {
+  await requireAdmin();
+  if (!imageUrl) return { ok: false, error: "Sin imagen." };
+
+  const system = `Eres el control de calidad de fotos de producto de una tienda de joyería (Oucy Studios). Te paso UNA foto de producto y detectas problemas que la harían poco vendible o no publicable.
+Presta MÁXIMA atención a si se ve REFLEJADA una persona, el fotógrafo, manos o un teléfono/móvil en la joya o en cualquier superficie brillante: es el fallo más común en joyería pulida y hay que avisarlo siempre.
+Evalúa también: fondo sucio o desordenado, foto borrosa/desenfocada, mal recorte o encuadre, iluminación muy pobre, dedos u objetos que distraen.
+Sé práctico: si la foto es correcta aunque no sea perfecta, márcala publicable.
+
+Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra):
+{"publishable": true, "reflection": false, "problems": [], "note": "..."}
+- "reflection": true SOLO si se ve un reflejo de persona/fotógrafo/móvil.
+- "problems": lista corta (máx 4) en español, cada uno una frase muy breve. Vacía si no hay problemas.
+- "note": una frase breve de consejo en español (p. ej. usa la foto del proveedor, repite con más luz…).`;
+
+  const r = await askJSON<{
+    publishable?: boolean;
+    reflection?: boolean;
+    problems?: unknown;
+    note?: string;
+  }>({
+    system,
+    maxTokens: 500,
+    messages: [
+      {
+        role: "user",
+        content: [
+          imageBlock(imageUrl),
+          { type: "text", text: "Revisa esta foto de producto y devuelve el JSON." },
+        ],
+      },
+    ],
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+
+  const problems = Array.isArray(r.data.problems)
+    ? r.data.problems.map((p) => String(p)).filter(Boolean).slice(0, 4)
+    : [];
+  return {
+    ok: true,
+    publishable: r.data.publishable !== false,
+    reflection: r.data.reflection === true,
+    problems,
+    note: String(r.data.note || ""),
+  };
+}
+
 /* ---------------- Proveedores ---------------- */
 
 export async function saveSupplier(formData: FormData) {

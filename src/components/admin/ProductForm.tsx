@@ -1,8 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { saveProduct, uploadImage, suggestProduct } from "@/app/admin/actions";
+import { saveProduct, uploadImage, suggestProduct, checkPhoto } from "@/app/admin/actions";
 import type { Category, Product, Supplier } from "@/lib/types";
+
+interface PhotoQc {
+  checking?: boolean;
+  publishable: boolean;
+  reflection: boolean;
+  problems: string[];
+  note: string;
+}
 
 export default function ProductForm({
   product,
@@ -16,6 +24,43 @@ export default function ProductForm({
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  // Control de calidad por foto (reflejos, borrosa, fondo…), por URL.
+  const [qc, setQc] = useState<Record<string, PhotoQc>>({});
+
+  async function runCheck(url: string) {
+    setQc((prev) => ({
+      ...prev,
+      [url]: { checking: true, publishable: true, reflection: false, problems: [], note: "" },
+    }));
+    try {
+      const r = await checkPhoto(url);
+      if (r.ok) {
+        setQc((prev) => ({
+          ...prev,
+          [url]: {
+            checking: false,
+            publishable: r.publishable,
+            reflection: r.reflection,
+            problems: r.problems,
+            note: r.note,
+          },
+        }));
+      } else {
+        // Si el control falla (p. ej. sin clave), no molestamos: se quita.
+        setQc((prev) => {
+          const next = { ...prev };
+          delete next[url];
+          return next;
+        });
+      }
+    } catch {
+      setQc((prev) => {
+        const next = { ...prev };
+        delete next[url];
+        return next;
+      });
+    }
+  }
 
   // Campos controlados para poder autorrellenarlos con las sugerencias de IA.
   const [name, setName] = useState(product?.name ?? "");
@@ -83,12 +128,14 @@ export default function ProductForm({
     setError("");
     const wasEmpty = images.length === 0;
     let firstUrl = "";
+    const newUrls: string[] = [];
     try {
       for (const file of files) {
         const fd = new FormData();
         fd.append("file", file);
         const url = await uploadImage(fd);
         if (!firstUrl) firstUrl = url;
+        newUrls.push(url);
         setImages((prev) => [...prev, url]);
       }
     } catch (err: any) {
@@ -97,6 +144,8 @@ export default function ProductForm({
       setUploading(false);
       e.target.value = "";
     }
+    // Control de calidad de cada foto subida (reflejos, borrosa, fondo…).
+    newUrls.forEach((u) => runCheck(u));
     // Autorrelleno: si es la primera foto y aún no hay nombre, sugiere con IA.
     if (wasEmpty && firstUrl && !name.trim()) {
       runSuggest(firstUrl);
@@ -124,20 +173,49 @@ export default function ProductForm({
           )}
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          {images.map((src, i) => (
-            <div key={i} className="relative h-24 w-24 border border-gold/20">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="h-full w-full object-cover" />
-              <button
-                type="button"
-                onClick={() => setImages(images.filter((_, j) => j !== i))}
-                className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-ink text-xs text-white"
-                aria-label="Quitar"
+          {images.map((src, i) => {
+            const check = qc[src];
+            const flagged = check && !check.checking && (check.reflection || !check.publishable);
+            return (
+              <div
+                key={i}
+                className={`relative h-24 w-24 border ${
+                  flagged ? "border-2 border-red-500" : "border-gold/20"
+                }`}
               >
-                ×
-              </button>
-            </div>
-          ))}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="h-full w-full object-cover" />
+                {check?.checking && (
+                  <span className="absolute inset-x-0 bottom-0 bg-ink/70 py-0.5 text-center text-[10px] text-white">
+                    Revisando…
+                  </span>
+                )}
+                {flagged && (
+                  <span
+                    className="absolute left-1 top-1 rounded bg-red-500 px-1 text-[10px] font-medium text-white"
+                    title={check.problems.join(" · ")}
+                  >
+                    ⚠
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImages(images.filter((_, j) => j !== i));
+                    setQc((prev) => {
+                      const next = { ...prev };
+                      delete next[src];
+                      return next;
+                    });
+                  }}
+                  className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-ink text-xs text-white"
+                  aria-label="Quitar"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
           <label className="flex h-24 w-24 cursor-pointer items-center justify-center border border-dashed border-gold/40 text-center text-xs text-muted hover:bg-gold/5">
             {uploading ? "Subiendo…" : "+ Añadir"}
             <input
@@ -152,10 +230,44 @@ export default function ProductForm({
         </div>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         {aiMsg && <p className="mt-2 text-sm text-muted">{aiMsg}</p>}
+
+        {/* Avisos de control de calidad de foto */}
+        {images.some((src) => {
+          const c = qc[src];
+          return c && !c.checking && (c.reflection || !c.publishable);
+        }) && (
+          <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm">
+            <p className="font-medium text-red-700">Revisa estas fotos antes de publicar:</p>
+            <ul className="mt-1 space-y-1 text-red-700">
+              {images.map((src, i) => {
+                const c = qc[src];
+                if (!c || c.checking || (!c.reflection && c.publishable)) return null;
+                const items = [
+                  ...(c.reflection ? ["se te ve reflejada / sale el móvil"] : []),
+                  ...c.problems.filter(
+                    (p) => !/reflej|móvil|movil|fotograf/i.test(p)
+                  ),
+                ];
+                return (
+                  <li key={src}>
+                    <span className="font-medium">Foto {i + 1}:</span>{" "}
+                    {items.join(" · ") || c.note || "revisar"}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-xs text-red-600/80">
+              Consejo: usa la foto del proveedor (sin reflejos) o dispara con una
+              cartulina blanca con un agujero para el objetivo. No es obligatorio,
+              pero una foto limpia vende mucho más.
+            </p>
+          </div>
+        )}
+
         <p className="mt-2 text-xs text-muted">
-          Al subir la primera foto se generan sugerencias de nombre, descripción,
-          material, categoría y un precio orientativo. El precio es solo un punto de
-          partida: fíjalo con tu coste (abajo) y el multiplicador.
+          Al subir cada foto, la IA la revisa (reflejos, fondo, enfoque) y te avisa
+          si conviene cambiarla. Con la primera foto además se sugiere nombre,
+          descripción, material, categoría y un precio orientativo (ajústalo con tu coste).
         </p>
       </section>
 
