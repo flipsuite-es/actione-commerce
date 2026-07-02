@@ -33,6 +33,74 @@ export async function getProductById(id: string): Promise<Product | null> {
   return (data as Product) ?? null;
 }
 
+/* ---------------- Copiloto: resumen del estado de la tienda ---------------- */
+
+/** Foto compacta del backoffice para dar contexto al copiloto de IA.
+ *  Solo lectura y resumida (cuentas + listas cortas) para acotar tokens. */
+export async function getStoreSnapshot() {
+  const [products, orders, tickets, reviews, subscribers, suppliers] = await Promise.all([
+    getAllProducts().catch(() => []),
+    getAllOrders().catch(() => []),
+    getAllTickets().catch(() => []),
+    getAllReviews().catch(() => []),
+    getSubscribers().catch(() => []),
+    getAllSuppliers().catch(() => []),
+  ]);
+  const supplierName = new Map(suppliers.map((s) => [s.id, s.name]));
+  const paid = orders.filter((o) => o.status === "paid" || o.status === "shipped");
+  const revenue = paid.reduce((n, o) => n + Number(o.total || 0), 0);
+
+  return {
+    products: {
+      total: products.length,
+      activos: products.filter((p) => p.status === "active").length,
+      borradores: products.filter((p) => p.status === "draft").length,
+      sinStock: products.filter((p) => p.stock <= 0).length,
+      sinProveedor: products.filter((p) => !p.supplier_id).length,
+      sinPrecio: products.filter((p) => !p.price).length,
+      stockBajo: products
+        .filter((p) => p.stock <= 3)
+        .slice(0, 30)
+        .map((p) => ({
+          nombre: p.name,
+          stock: p.stock,
+          proveedor: p.supplier_id ? supplierName.get(p.supplier_id) ?? null : null,
+        })),
+    },
+    pedidos: {
+      total: orders.length,
+      pendientes: orders.filter((o) => o.status === "pending").length,
+      pagadosOenviados: paid.length,
+      ingresosEUR: Math.round(revenue * 100) / 100,
+      recientes: orders.slice(0, 8).map((o) => ({
+        ref: o.id.slice(0, 8),
+        estado: o.status,
+        total: o.total,
+        cliente: o.name || o.email,
+      })),
+    },
+    soporte: {
+      abiertosOpendientes: tickets.filter(
+        (t) => t.status === "open" || t.status === "pending",
+      ).length,
+      recientes: tickets.slice(0, 8).map((t) => ({
+        asunto: t.subject,
+        estado: t.status,
+        cliente: t.name,
+      })),
+    },
+    resenas: { porAprobar: reviews.filter((r) => !r.approved).length },
+    suscriptores: subscribers.length,
+    proveedores: suppliers.map((s) => ({
+      nombre: s.name,
+      contacto: s.contact_name,
+      email: s.email,
+      plazoDias: s.lead_time_days,
+      activo: s.active,
+    })),
+  };
+}
+
 /* ---------------- Proveedores ---------------- */
 
 export async function getAllSuppliers(): Promise<Supplier[]> {

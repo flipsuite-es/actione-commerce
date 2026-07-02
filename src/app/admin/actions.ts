@@ -8,6 +8,7 @@ import { slugify } from "@/lib/format";
 import { encryptSecret } from "@/lib/crypto";
 import { askJSON, askText, imageBlock, BRAND_RULES } from "@/lib/ai";
 import { removeReflection, imageEditConfigured } from "@/lib/image-edit";
+import { getStoreSnapshot } from "@/lib/admin-data";
 
 async function requireAdmin() {
   const supabase = createSupabaseServer();
@@ -429,6 +430,35 @@ Devuelve EXCLUSIVAMENTE un JSON:
     audit.data.only_reflection_changed !== false &&
     changes.length === 0;
   return { ok: true, cleanedUrl, safe, changes, note: String(audit.data.note || "") };
+}
+
+/** Copiloto interno del panel: responde sobre el estado de la tienda y redacta
+ *  textos/correos con el tono de marca. Solo CONSULTA (no ejecuta cambios). */
+export async function askAssistant(
+  history: { role: "user" | "assistant"; content: string }[],
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  if (!history.length) return { ok: false, error: "Sin pregunta." };
+
+  const snapshot = await getStoreSnapshot();
+  const system = `${BRAND_RULES}
+
+Eres el COPILOTO interno de Oucy Studios (empresa AI-first de puertas adentro). Ayudas al fundador a gestionar la tienda: respondes sobre el estado del negocio, priorizas tareas y redactas textos/correos (a proveedores, clientes, marketing) respetando SIEMPRE las reglas de marca de arriba.
+- Español de España, claro, directo y con datos concretos del contexto.
+- Solo CONSULTAS datos (te paso un resumen del backoffice); NO ejecutas cambios. Si algo hay que hacer en el panel, indícalo con la sección (p. ej. /admin/reposicion, /admin/productos, /admin/proveedores).
+- Pricing: el coste de compra es 1–4 €/pieza y el PVP realista es ~10–20 € (punto dulce 12,95–15,95). No infles precios.
+- Si un dato no está en el contexto, dilo en vez de inventarlo.
+
+RESUMEN ACTUAL DEL BACKOFFICE (JSON):
+${JSON.stringify(snapshot)}`;
+
+  const msgs = history
+    .slice(-12)
+    .map((m) => ({ role: m.role, content: m.content }));
+
+  const r = await askText({ system, maxTokens: 1400, messages: msgs });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, text: r.data };
 }
 
 /* ---------------- Proveedores ---------------- */

@@ -63,8 +63,8 @@
 - [x] ✅ **Borrado de reflejos con IA + auditoría anti-engaño**: edita (fal/FLUX Kontext), Claude audita original vs
       editada y el admin aprueba (original nunca se pierde). **Requiere `FAL_KEY` en Vercel** (fal.ai; coste por imagen).
 - [ ] **Borrador de respuestas de soporte con IA**: botón «Redactar con IA» en el hilo del ticket (tono de marca).
-- [ ] **Copiloto del panel**: chat interno que responde sobre la tienda (stock bajo, pedidos de la semana, tareas
-      pendientes) y redacta textos/correos. (Requiere darle contexto resumido de la DB.)
+- [x] ✅ **Copiloto del panel** (`/admin/asistente`): chat que conoce el estado de la tienda (stock, pedidos, tickets,
+      proveedores…) y ayuda a decidir/priorizar/redactar. Solo lectura (no ejecuta cambios).
 - [ ] **Resumen diario del negocio** en el Panel: la IA resume pedidos/tickets/stock del día en 3–4 líneas.
 - [ ] **Insights de reseñas**: resumen de opiniones y detección de quejas recurrentes.
 - [ ] (Todas requieren `ANTHROPIC_API_KEY` en Vercel; sin ella el backoffice funciona a mano.)

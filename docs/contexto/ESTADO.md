@@ -87,8 +87,12 @@ backoffice completos y funcionando.
   pedido mínimo, activo; RLS solo `is_admin`) + `products.supplier_id` (FK). CRUD en **`/admin/proveedores`**. La ficha
   de producto tiene selector de proveedor + ref. Sembrado **Smile Joyas** como proveedor inicial. Pensado para crecer a
   más proveedores sin tocar esquema.
-- **Roadmap AI-first** (siguiente, ver PENDIENTES): borrador de respuestas de soporte con IA, copiloto del panel
-  (preguntar por stock/pedidos/tareas), resumen diario del negocio, e insights de reseñas.
+  5. **Copiloto del panel** (`/admin/asistente` + `askAssistant` + `getStoreSnapshot`): chat interno que conoce el
+     **estado real de la tienda** (resumen compacto: productos/stock bajo/sin proveedor/sin precio, pedidos, tickets,
+     reseñas, proveedores, suscriptores) y ayuda a decidir, priorizar y **redactar** correos/textos con tono de marca.
+     Es **solo lectura**: no ejecuta cambios (si algo hay que hacer, indica la sección del panel). `maxDuration=60`.
+- **Roadmap AI-first** (siguiente, ver PENDIENTES): borrador de respuestas de soporte con IA, resumen diario del
+  negocio en el Panel, e insights de reseñas.
 
 ## Vercel
 - Team: `flipsuite-es' projects` (id `team_Z3rTsOhJJI24bIJ67MmXAkiH`).
