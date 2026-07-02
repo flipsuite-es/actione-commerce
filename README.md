@@ -54,6 +54,7 @@ Cuando abras pasarela propia, ya lo harás con reputación, procesos y aislamien
 | [`docs/16-investigacion-joyeria.md`](docs/16-investigacion-joyeria.md) | **Investigación de joyería asequible:** mercado, competencia, posicionamiento recomendado. |
 | [`docs/17-gama-de-precio-decision.md`](docs/17-gama-de-precio-decision.md) | **¿Asequible o cara?** Decisión de gama: empezar asequible, escalar a demi-fine. |
 | [`docs/18-oucystudios-kit-de-marca-y-lanzamiento.md`](docs/18-oucystudios-kit-de-marca-y-lanzamiento.md) | **🚀 KIT DE LANZAMIENTO:** marca, bio, precios, fichas, primeros vídeos y pasos de esta semana. |
+| [`docs/19-canales-de-venta.md`](docs/19-canales-de-venta.md) | **Dónde vendemos:** IG/TikTok (descubrir) + Etsy/Wallapop (cobro seguro) → tienda propia. |
 
 ---
 
