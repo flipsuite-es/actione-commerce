@@ -3,22 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { createSupabaseAdmin, BUCKET } from "@/lib/supabase/admin";
+import { BUCKET } from "@/lib/storage";
 import { slugify } from "@/lib/format";
 
-export async function signOut() {
-  const supabase = createSupabaseServer();
-  await supabase.auth.signOut();
-  redirect("/admin/login");
-}
-
-async function requireUser() {
+/**
+ * Todas las operaciones de administración usan el cliente de servidor con la
+ * SESIÓN del admin. RLS garantiza que solo un usuario autenticado puede escribir
+ * (política *_admin_all / for authenticated). No se usa la service_role.
+ */
+async function requireAdmin() {
   const supabase = createSupabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autorizado");
-  return user;
+  return supabase;
 }
 
 function num(v: FormDataEntryValue | null): number {
@@ -26,14 +25,21 @@ function num(v: FormDataEntryValue | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+export async function signOut() {
+  const supabase = createSupabaseServer();
+  await supabase.auth.signOut();
+  redirect("/admin/login");
+}
+
 export async function saveProduct(formData: FormData) {
-  await requireUser();
-  const admin = createSupabaseAdmin();
+  const supabase = await requireAdmin();
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
   const slug =
-    String(formData.get("slug") || "").trim() || slugify(name) || `p-${Date.now()}`;
+    String(formData.get("slug") || "").trim() ||
+    slugify(name) ||
+    `p-${Date.now()}`;
   const images = JSON.parse(String(formData.get("images") || "[]")) as string[];
 
   const record = {
@@ -55,10 +61,10 @@ export async function saveProduct(formData: FormData) {
   };
 
   if (id) {
-    const { error } = await admin.from("products").update(record).eq("id", id);
+    const { error } = await supabase.from("products").update(record).eq("id", id);
     if (error) throw new Error(error.message);
   } else {
-    const { error } = await admin.from("products").insert(record);
+    const { error } = await supabase.from("products").insert(record);
     if (error) throw new Error(error.message);
   }
   revalidatePath("/admin/productos");
@@ -68,20 +74,22 @@ export async function saveProduct(formData: FormData) {
 }
 
 export async function deleteProduct(id: string) {
-  await requireUser();
-  const admin = createSupabaseAdmin();
-  const { error } = await admin.from("products").delete().eq("id", id);
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/productos");
   revalidatePath("/tienda");
 }
 
 export async function adjustStock(id: string, delta: number) {
-  await requireUser();
-  const admin = createSupabaseAdmin();
-  const { data } = await admin.from("products").select("stock").eq("id", id).single();
+  const supabase = await requireAdmin();
+  const { data } = await supabase
+    .from("products")
+    .select("stock")
+    .eq("id", id)
+    .single();
   const current = (data?.stock as number) ?? 0;
-  const { error } = await admin
+  const { error } = await supabase
     .from("products")
     .update({ stock: Math.max(0, current + delta) })
     .eq("id", id);
@@ -90,24 +98,27 @@ export async function adjustStock(id: string, delta: number) {
 }
 
 export async function uploadImage(formData: FormData): Promise<string> {
-  await requireUser();
-  const admin = createSupabaseAdmin();
+  const supabase = await requireAdmin();
   const file = formData.get("file") as File | null;
   if (!file) throw new Error("Sin archivo");
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `products/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { error } = await admin.storage
+  const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, buffer, { contentType: file.type || "image/jpeg", upsert: false });
+    .upload(path, buffer, {
+      contentType: file.type || "image/jpeg",
+      upsert: false,
+    });
   if (error) throw new Error(error.message);
-  const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
 
 export async function saveSettings(formData: FormData) {
-  await requireUser();
-  const admin = createSupabaseAdmin();
+  const supabase = await requireAdmin();
   const record = {
     shop_name: String(formData.get("shop_name") || "Oucy Studios"),
     tagline: String(formData.get("tagline") || ""),
@@ -117,20 +128,21 @@ export async function saveSettings(formData: FormData) {
     free_ship_threshold: num(formData.get("free_ship_threshold")),
     shipping_flat: num(formData.get("shipping_flat")),
   };
-  const { error } = await admin.from("settings").update(record).eq("id", 1);
+  const { error } = await supabase.from("settings").update(record).eq("id", 1);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/ajustes");
   revalidatePath("/");
 }
 
 export async function saveCategory(formData: FormData) {
-  await requireUser();
-  const admin = createSupabaseAdmin();
+  const supabase = await requireAdmin();
   const name = String(formData.get("name") || "").trim();
   if (!name) return;
-  const { error } = await admin
-    .from("categories")
-    .insert({ name, slug: slugify(name), sort: Math.round(num(formData.get("sort"))) });
+  const { error } = await supabase.from("categories").insert({
+    name,
+    slug: slugify(name),
+    sort: Math.round(num(formData.get("sort"))),
+  });
   if (error) throw new Error(error.message);
   revalidatePath("/admin/productos");
 }

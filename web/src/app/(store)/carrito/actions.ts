@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { createSupabaseServer } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/data";
 import type { CartItem } from "@/lib/types";
 
@@ -13,8 +13,7 @@ export async function createOrder(payload: {
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const { items, name, email, phone, note } = payload;
   if (!items?.length) return { ok: false, error: "La cesta está vacía." };
-  if (!email || !name)
-    return { ok: false, error: "Falta nombre o correo." };
+  if (!email || !name) return { ok: false, error: "Falta nombre o correo." };
 
   const settings = await getSettings();
   const subtotal = items.reduce((n, i) => n + i.qty * i.price, 0);
@@ -23,7 +22,7 @@ export async function createOrder(payload: {
   const total = subtotal + shipping;
 
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = createSupabaseServer();
     const { data, error } = await supabase
       .from("orders")
       .insert({
@@ -46,7 +45,7 @@ export async function createOrder(payload: {
       .single();
     if (error) return { ok: false, error: error.message };
     return { ok: true, id: data.id as string };
-  } catch (e) {
+  } catch {
     return { ok: false, error: "No se pudo registrar el pedido." };
   }
 }
