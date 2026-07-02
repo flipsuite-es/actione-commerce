@@ -4,13 +4,14 @@
 > en cada sesión. Última actualización: sesión de construcción inicial.
 
 ## ⏳ RECORDAR AL USUARIO cuando pueda ponerse (config externa; Claude no puede hacerla)
-> El usuario pidió expresamente que se le RECUERDE esto más tarde. Menciónalo al inicio de la próxima sesión.
-- [ ] **Vercel → `VAULT_KEY`** (30+ caracteres aleatorios) + redeploy → cifrado fuerte del gestor de contraseñas.
-- [ ] **Supabase → Auth → SMTP** (Brevo/Resend) *o* desactivar "Confirm email" → que el registro de clientes funcione.
-- [ ] **Supabase → Auth → URL Configuration:** Site URL + Redirect URLs (`…/auth/callback`) para el enlace de confirmación.
-- [ ] (Opcional) **Vercel Production Branch** y **GitHub default branch** → `main` (el deploy YA funciona por sincronización).
+- [ ] **Vercel → `VAULT_KEY`** + redeploy → cifrado fuerte del gestor de contraseñas. (Instrucciones dadas 2026-07-02.)
+- [ ] **Supabase → Auth (cuentas de cliente):** el usuario SÍ quiere confirmación de email → configurar **SMTP**
+      (Brevo/Resend) + **Redirect URLs** (`…/auth/callback`). (Instrucciones dadas 2026-07-02.)
 - [ ] **Mejoras de cuenta** (cuando retomemos): favoritos en la cuenta, autorrelleno en checkout, direcciones de envío.
-- [ ] Enviar el **correo a Smile Joyas** (borrador ya redactado en el chat).
+- [x] Ajustes revisados (`/admin/ajustes`) — hecho por el usuario 2026-07-02.
+- [x] Dominio `oucystudios.com` conectado — hecho por el usuario 2026-07-02.
+- [x] Repunte a `main` — el usuario indica que ya está en main (2026-07-02).
+- [x] Correo a Smile Joyas — enviado por el usuario 2026-07-02.
 
 ## 🔴 Bloqueante / siguiente paso
 - [x] ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02) vía Supabase MCP (conector ya autorizado
@@ -36,18 +37,16 @@
       (la que Vercel vigila) se sincronizó por *fast-forward* con `main`. Ambas apuntan al mismo commit, así que
       Vercel redespliega solo. **Regla de trabajo hasta migrar del todo:** hacer push a `main` Y sincronizar la
       rama de producción (`git push origin main:claude/ecommerce-low-investment-model-ru62lb`) para que despliegue.
-- [ ] (Opcional, cosmético) **Repuntar Vercel/GitHub a `main`** para no depender de la doble-push: los ajustes de
-      panel (Vercel → Settings → Git → Production Branch = `main`; GitHub → Settings → Default branch = `main`) SOLO
-      los puede cambiar el usuario. Claude no tiene herramientas para tocar esos settings. Tras cambiarlos, avisar a
-      Claude para **borrar las ramas antiguas** y quedarnos solo con `main`.
+- [x] **Repunte a `main`**: el usuario indica (2026-07-02) que ya está en main. PENDIENTE confirmar si la
+      **Production Branch de Vercel** apunta a `main`; si es así, se puede **dejar de sincronizar** la rama antigua
+      y **borrar** `claude/…`. Mientras no se confirme, seguir con la doble-push por seguridad.
 
 ## 🟡 Para lanzar de verdad
-- [ ] Subir **productos reales** por `/admin/productos` (fotos ya en poder del usuario).
-- [ ] Crear **categorías** (Anillos, Pendientes, Colgantes…) en `/admin/categorias`.
-- [ ] Revisar/editar **ajustes** (redes reales, contacto, textos) en `/admin/ajustes`.
-- [ ] Conectar el **dominio oucystudios.com** en Vercel → Project → Domains (+ DNS).
-      Luego añadir env `NEXT_PUBLIC_SITE_URL=https://oucystudios.com` y redeploy.
-- [ ] Pedir al proveedor el **informe del acero** (níquel/316L) para respaldar el claim "hipoalergénico".
+- [ ] **(POSPUESTO por el usuario)** Subir **productos reales** por `/admin/productos` + crear **categorías**
+      (Anillos, Pendientes, Colgantes…) en `/admin/categorias`. Es el paso que desbloquea el lanzamiento.
+- [ ] **(POSPUESTO hasta lanzamiento)** Quitar el **muro de pre-lanzamiento** (Ajustes → `prelaunch_enabled` off).
+- [x] Ajustes revisados · [x] Dominio conectado (2026-07-02, por el usuario).
+- [ ] Con la respuesta de **Smile Joyas** (informe de materiales/níquel), afinar claims de calidad.
 
 ## 🟢 Mejoras / Fase 2
 - [ ] **(RECORDAR al usuario)** Mejoras de cuenta cliente: sincronizar **favoritos** con la cuenta (ahora son
