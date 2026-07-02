@@ -57,3 +57,5 @@
 - [x] **Seguimiento de pedido** para el cliente (2026-07-02): migración 006 + página `/pedido` (ref+email → línea
       de estado + nº de seguimiento); la confirmación del checkout muestra la referencia. Testimonios de la home
       ahora se nutren de reseñas reales aprobadas (con fallback). Dashboard con más indicadores.
+- [x] **Opción de regalo en el checkout** (2026-07-02): marca "Es un regalo" + mensaje para la tarjeta; llega al
+      admin en la nota del pedido.

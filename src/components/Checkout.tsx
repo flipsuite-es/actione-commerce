@@ -23,6 +23,9 @@ export default function Checkout({
   const [applied, setApplied] = useState<{ code: string; discount: number } | null>(null);
   const [couponMsg, setCouponMsg] = useState("");
 
+  const [gift, setGift] = useState(false);
+  const [giftMsg, setGiftMsg] = useState("");
+
   const shipping = subtotal >= freeShipThreshold ? 0 : shippingFlat;
   const discount = applied?.discount ?? 0;
   const total = Math.max(0, subtotal + shipping - discount);
@@ -86,7 +89,13 @@ export default function Checkout({
     e.preventDefault();
     setStatus("sending");
     setError("");
-    const res = await createOrder({ items, ...form, couponCode: applied?.code });
+    const note = [
+      gift ? `🎁 REGALO${giftMsg.trim() ? ` — tarjeta: "${giftMsg.trim()}"` : ""}` : "",
+      form.note.trim(),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const res = await createOrder({ items, ...form, note, couponCode: applied?.code });
     if (res.ok) {
       if (res.id) setOrderRef(res.id.slice(0, 8).toUpperCase());
       clear();
@@ -162,6 +171,31 @@ export default function Checkout({
           <div>
             <label className="label">Nota (opcional)</label>
             <textarea className="input" rows={2} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+          </div>
+
+          <div className="border-t border-gold/15 pt-4">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={gift}
+                onChange={(e) => setGift(e.target.checked)}
+                className="accent-gold-3"
+              />
+              <span className="gold-text">✦</span> Es un regalo
+            </label>
+            {gift && (
+              <div className="mt-3">
+                <label className="label">Mensaje para la tarjeta (opcional)</label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  maxLength={200}
+                  value={giftMsg}
+                  onChange={(e) => setGiftMsg(e.target.value)}
+                  placeholder="Lo escribiremos en una tarjeta para quien lo recibe."
+                />
+              </div>
+            )}
           </div>
         </div>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
