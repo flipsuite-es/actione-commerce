@@ -4,11 +4,10 @@
 > en cada sesión. Última actualización: sesión de construcción inicial.
 
 ## 🔴 Bloqueante / siguiente paso
-- [ ] **Ejecutar la migración `supabase/migrations/002_backoffice.sql`** en Supabase (proyecto Oucy).
-      Desbloquea: contenido editable en ajustes, cupones, páginas, y seguimiento/descuento en pedidos.
-      - Opción A (rápida): el usuario la pega en Supabase → SQL Editor → Run.
-      - Opción B (que la haga Claude): reautorizar el conector Supabase incluyendo la org **Oucy Studios**
-        + abrir sesión nueva; entonces Claude ejecuta `apply_migration` sobre `jedyummyygniixuyzbck`.
+- [x] ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02) vía Supabase MCP (conector ya autorizado
+      para la org Oucy). Verificado: settings +6 cols, orders +3 cols, tablas coupons y pages (4 páginas).
+- [ ] **SIGUIENTE:** cargar catálogo real por `/admin` → primero **categorías**, luego **productos** con fotos.
+      (Requiere que el usuario entre en `/admin` con su email/contraseña de Supabase Auth.)
 
 ## 🟡 Para lanzar de verdad
 - [ ] Subir **productos reales** por `/admin/productos` (fotos ya en poder del usuario).

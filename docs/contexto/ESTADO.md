@@ -23,7 +23,8 @@ backoffice completos y funcionando.
 - Proyecto: ref **`jedyummyygniixuyzbck`** · URL: `https://jedyummyygniixuyzbck.supabase.co` · Región eu-west.
 - Claves: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (pública) configuradas en Vercel. **No** se usa service_role (el backoffice escribe con la sesión del admin vía RLS).
 - Esquema aplicado: `supabase/schema.sql` (categories, products, orders, settings + RLS + bucket `product-images`).
-- **Migración pendiente:** `supabase/migrations/002_backoffice.sql` (settings de contenido, orders.tracking/discount/coupon_code, tablas `coupons` y `pages`). La app funciona sin ella (degrada), pero hasta aplicarla NO hay cupones, páginas editables, ni contenido/redes editables, ni seguimiento de pedidos.
+- **Migración 002 APLICADA** (2026-07-02): `supabase/migrations/002_backoffice.sql`. Añadidas 6 columnas de contenido a `settings` (instagram_url, tiktok_url, whatsapp_url, contact_email, hero_subtitle, story_text), 3 columnas a `orders` (tracking, discount, coupon_code), y las tablas `coupons` y `pages` (con RLS + 4 páginas iniciales: envios, devoluciones, cuidado, privacidad). Ya funcionan cupones, páginas editables, contenido/redes editables y seguimiento de pedidos.
+  - Verificación advisors (seguridad): solo WARN esperados — las políticas `*_admin_all ... using(true)` para el admin autenticado son **por diseño** (ver DECISIONES: el admin gestiona todo vía su sesión RLS); `function_search_path_mutable` en `touch_updated_at` y `auth_leaked_password_protection` son WARN menores no bloqueantes.
 - Usuario admin: creado por el usuario en Authentication (email + contraseña propios). Entra en `/admin`.
 - Bucket de imágenes: `product-images` (público).
 
@@ -59,10 +60,8 @@ en `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (el sandbox bloquea la r
 ver la tienda con datos se usa un modo de previsualización TEMPORAL en `src/lib/data.ts` y luego se restaura).
 
 ## Limitaciones del entorno (para no chocar de nuevo)
-1. **Supabase MCP** autorizado solo para la org `flipsuite` → sin permiso sobre el proyecto de Oucy
-   (`get_project`/`apply_migration` devuelven "no permission"). **Solución para que Claude gestione la DB:**
-   el usuario reautoriza el conector de Supabase incluyendo la org **Oucy Studios** (o "todas") y abre una
-   **sesión NUEVA**; entonces Claude puede ejecutar migraciones y SQL con `project_id=jedyummyygniixuyzbck`.
+1. **Supabase MCP: RESUELTO** — el conector ya está autorizado para la org **Oucy Studios**; Claude gestiona la DB
+   con `project_id=jedyummyygniixuyzbck` (list_migrations, apply_migration, execute_sql, get_advisors funcionan).
 2. **Red del sandbox:** bloquea salidas HTTPS a `supabase.co` y `vercel.app` (proxy con lista blanca). Por eso
    Claude no puede arrancar la app contra la DB real ni hacer capturas en vivo del sitio publicado; sí puede
    compilar, y verificar Vercel vía las herramientas MCP de Vercel (logs, deployments).

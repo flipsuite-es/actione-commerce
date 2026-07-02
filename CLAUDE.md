@@ -33,8 +33,8 @@ ADN de Action. Marca, tienda y backoffice propios.
 ## Estado de un vistazo
 - ✅ App completa (storefront premium + backoffice) desplegada en Vercel.
 - ✅ Supabase base (schema.sql) aplicado. Backoffice básico operativo.
-- ⏳ **Migración `supabase/migrations/002_backoffice.sql` PENDIENTE** de ejecutar (desbloquea: contenido editable, cupones, páginas, seguimiento de pedidos). La app degrada con elegancia si no está.
+- ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02, sesión de revisión de contexto) vía Supabase MCP. Desbloqueado: contenido editable en ajustes, cupones, páginas (4 iniciales sembradas), y descuento/cupón/seguimiento en pedidos.
 - ⏳ Subir productos reales por `/admin`. ⏳ Conectar dominio oucystudios.com. ⏳ Pagos (Fase 2).
 
-## Limitación conocida (importante)
-El conector **Supabase MCP** está autorizado solo para la organización `flipsuite`, no para la org **Oucy Studios** (misma cuenta `flipsuite.gestion@gmail.com`), así que Claude **no puede tocar la base de datos de Oucy** salvo que el usuario **reautorice el MCP incluyendo la org Oucy** y abra una **sesión nueva**. El sandbox además bloquea la red directa a supabase.co. Detalle y solución en `docs/contexto/ESTADO.md`.
+## Conector Supabase (ACTUALIZADO)
+El conector **Supabase MCP ya está autorizado para la org "Oucy Studios"** (proyecto `jedyummyygniixuyzbck`), así que Claude **sí puede gestionar la base de datos** (migraciones y SQL) desde esta sesión. La red directa a supabase.co sigue bloqueada en el sandbox, pero las operaciones de DB se hacen por las herramientas MCP de Supabase. (Antes solo se veía la org `flipsuite`; ya está resuelto.)
