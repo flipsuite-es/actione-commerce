@@ -4,10 +4,10 @@
 > en cada sesión. Última actualización: sesión de construcción inicial.
 
 ## ⏳ RECORDAR AL USUARIO cuando pueda ponerse (config externa; Claude no puede hacerla)
-- [ ] **Vercel → `VAULT_KEY`** + redeploy → cifrado fuerte del gestor de contraseñas. (Instrucciones dadas 2026-07-02.)
+- [x] ✅ **Vercel → `VAULT_KEY`** configurada (2026-07-02) → gestor de contraseñas con cifrado fuerte.
 - [x] ✅ **Cuentas de cliente FUNCIONANDO** (2026-07-02): SMTP con **Brevo** + Redirect URLs configurados. Probado:
-      registro → correo de confirmación → enlace → sesión iniciada. (Remitente actual = Gmail del usuario; opcional
-      pasar a `hola@oucystudios.com` autenticando el dominio en Brevo más adelante.)
+      registro → correo de confirmación → enlace → sesión iniciada. Remitente = **hola@oucystudios.com** (dominio
+      autenticado en Brevo).
 - [ ] **Mejoras de cuenta** (cuando retomemos): favoritos en la cuenta, autorrelleno en checkout, direcciones de envío.
 - [x] Ajustes revisados (`/admin/ajustes`) — hecho por el usuario 2026-07-02.
 - [x] Dominio `oucystudios.com` conectado — hecho por el usuario 2026-07-02.
@@ -29,9 +29,7 @@
       (p. ej. `https://oucystudios.vercel.app/auth/callback` y luego el dominio real) para que el enlace de
       confirmación funcione.
 - [ ] Para hacer admin a otra persona: `update public.profiles set role='admin' where email='…';` (por SQL/MCP).
-- [ ] **Gestor de contraseñas — `VAULT_KEY`:** añadir en Vercel → Settings → Environment Variables una `VAULT_KEY`
-      (30+ caracteres aleatorios) y redeploy, para cifrado fuerte de la bóveda. OJO: si se cambia la `VAULT_KEY`
-      después de guardar entradas, las ya guardadas dejarán de descifrarse (habría que reintroducirlas).
+- [x] ✅ **`VAULT_KEY` configurada** (2026-07-02). OJO: no cambiarla tras guardar entradas (dejarían de descifrarse).
 
 ## 🟠 Config de plataformas (deploy YA resuelto por sincronización)
 - [x] ✅ **Deploy funcionando** (2026-07-02): la rama de producción `claude/ecommerce-low-investment-model-ru62lb`
