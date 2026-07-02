@@ -28,9 +28,9 @@ export default function SiteFooter({
 
       <div className="container-lux grid gap-6 border-b border-gold/10 py-10 sm:grid-cols-3">
         {[
-          { icon: IconSparkle, t: "Diseño atemporal", s: "Piezas pensadas para quedarse" },
-          { icon: IconGift, t: "Para regalar", s: "Con un packaging cuidado" },
-          { icon: IconTruck, t: "Envío desde España", s: "Preparado con mimo, con seguimiento" },
+          { icon: IconSparkle, t: "Estilo atemporal", s: "Piezas pensadas para quedarse" },
+          { icon: IconGift, t: "Para regalar", s: "El detalle que sorprende" },
+          { icon: IconTruck, t: "Envío con seguimiento", s: "Sigue tu pedido en todo momento" },
         ].map(({ icon: Icon, t, s }) => (
           <div key={t} className="flex items-center gap-4">
             <span className="grid h-11 w-11 place-items-center rounded-full border border-gold/30 text-gold-3">
@@ -48,7 +48,7 @@ export default function SiteFooter({
         <div className="sm:col-span-1">
           <p className="font-serif text-2xl">{settings.shop_name}</p>
           <p className="mt-3 max-w-xs text-sm text-muted">
-            Estudio de joyería. Piezas atemporales, para llevar cada día.
+            Joyas elegidas con cuidado, para tu día a día y para regalar.
           </p>
           <div className="mt-4 flex gap-3 text-gold-3">
             {settings.instagram_url && (
@@ -79,8 +79,8 @@ export default function SiteFooter({
 
       <div className="border-t border-gold/10 py-6">
         <div className="container-lux flex flex-col items-center justify-between gap-2 text-[11px] uppercase tracking-[0.14em] text-muted sm:flex-row">
-          <span>© {new Date().getFullYear()} {settings.shop_name} · Hecho en España</span>
-          <span>Pago seguro · Visa · Mastercard · PayPal · Bizum</span>
+          <span>© {new Date().getFullYear()} {settings.shop_name}</span>
+          <span>Pago seguro · Envío con seguimiento</span>
         </div>
       </div>
     </footer>

@@ -15,9 +15,9 @@ export const DEFAULT_SETTINGS: Settings = {
   whatsapp_url: "",
   contact_email: "",
   hero_subtitle:
-    "Piezas atemporales, diseñadas en nuestro estudio para acompañarte cada día y para regalar.",
+    "Piezas atemporales, elegidas con cuidado para acompañarte cada día y para regalar.",
   story_text:
-    "Oucy Studios nace de una idea sencilla: llevar algo bonito no debería ser un lujo reservado para las grandes ocasiones. Diseñamos piezas atemporales, pensadas para tu día a día y para los momentos que quieres recordar. Joyas para tener siempre, para regalarte y para regalar.",
+    "Oucy Studios nace de una idea sencilla: llevar algo bonito no debería ser un lujo reservado para las grandes ocasiones. Elegimos con cuidado piezas atemporales, pensadas para tu día a día y para los momentos que quieres recordar. Joyas para tener siempre, para regalarte y para regalar.",
 };
 
 /** Rellena los campos que aún no existan (antes de correr la migración 002). */

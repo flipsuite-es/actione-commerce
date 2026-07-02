@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s · Oucy Studios",
   },
   description:
-    "Piezas atemporales, diseñadas en estudio para llevar cada día y para regalar.",
+    "Piezas atemporales, elegidas con cuidado para llevar cada día y para regalar.",
   openGraph: {
     title: "Oucy Studios",
     description: "Joyería atemporal para cada día.",

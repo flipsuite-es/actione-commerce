@@ -5,9 +5,9 @@ export default function AnnouncementBar({ text }: { text?: string }) {
     ? [text]
     : [
         "Envío gratis desde 24,90 €",
-        "Diseñado en estudio",
+        "Selección cuidada",
         "Piezas atemporales",
-        "Envío desde España con seguimiento",
+        "Envío con seguimiento",
       ];
   const row = [...items, ...items, ...items];
   return (

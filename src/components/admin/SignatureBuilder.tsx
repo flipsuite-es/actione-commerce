@@ -67,7 +67,7 @@ function brandBlock(d: SigData, opts: { center?: boolean; size?: number } = {}) 
     return `<img src="https://${base}/logo.png" alt="Oucy Studios" width="${opts.center ? 170 : 150}" style="display:block;border:0;outline:none;${opts.center ? "margin:0 auto 8px;" : "margin-bottom:8px;"}">`;
   }
   return `<div${opts.center ? ' style="text-align:center;"' : ""}>${wordmark(size)}</div>
-    <div style="font-family:Arial,Helvetica,sans-serif;font-size:8.5px;letter-spacing:3px;text-transform:uppercase;color:${MUTED};margin-top:5px;${opts.center ? "text-align:center;" : ""}">Estudio de joyería</div>`;
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:8.5px;letter-spacing:3px;text-transform:uppercase;color:${MUTED};margin-top:5px;${opts.center ? "text-align:center;" : ""}">Joyería</div>`;
 }
 
 function contactRow(label: string, value: string, href: string) {

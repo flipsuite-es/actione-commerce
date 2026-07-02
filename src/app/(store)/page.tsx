@@ -39,9 +39,9 @@ export default async function HomePage() {
               </Link>
             </div>
             <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted md:justify-start">
-              <span>Diseñado en estudio</span>
+              <span>Selección cuidada</span>
               <span>Para cada día</span>
-              <span>Envío desde España</span>
+              <span>Envío con seguimiento</span>
             </div>
           </Reveal>
 
@@ -70,7 +70,7 @@ export default async function HomePage() {
           <Reveal className="mb-10 text-center">
             <div className="hairline mx-auto" />
             <h2 className="heading mt-4 text-4xl">Novedades</h2>
-            <p className="mt-2 text-muted">Lo último del estudio</p>
+            <p className="mt-2 text-muted">Recién llegadas</p>
           </Reveal>
           <Reveal>
             <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-4">
@@ -91,9 +91,9 @@ export default async function HomePage() {
       <section className="container-lux py-20">
         <div className="grid gap-8 sm:grid-cols-3">
           {[
-            { icon: IconSparkle, t: "Diseño atemporal", s: "Piezas que no pasan de moda, para llevar hoy y dentro de muchos años." },
-            { icon: IconGift, t: "Para ti y para regalar", s: "El detalle que alegra un día cualquiera, con un packaging cuidado listo para sorprender." },
-            { icon: IconHeart, t: "Hechas para acompañarte", s: "Piezas cuidadas, pensadas para tu día a día y para quedarse contigo." },
+            { icon: IconSparkle, t: "Estilo atemporal", s: "Piezas que no pasan de moda, para llevar hoy y dentro de muchos años." },
+            { icon: IconGift, t: "Para ti y para regalar", s: "El detalle que alegra un día cualquiera, listo para sorprender." },
+            { icon: IconHeart, t: "Elegidas con cuidado", s: "Seleccionamos cada pieza con criterio, para tu día a día y para quedarse contigo." },
           ].map(({ icon: Icon, t, s }, i) => (
             <Reveal key={t} delay={i * 90} className="text-center">
               <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-gold/30 text-gold-3">
@@ -115,8 +115,8 @@ export default async function HomePage() {
               El regalo que <span className="gold-text italic">se recuerda</span>.
             </h2>
             <p className="mt-4 max-w-md text-ink-soft">
-              Piezas elegantes con un packaging cuidado, listas para sorprender.
-              Para un cumpleaños, un aniversario o un “porque sí”.
+              Piezas elegantes, listas para sorprender. Para un cumpleaños, un
+              aniversario o un “porque sí”.
             </p>
             <Link href="/tienda" className="btn-gold mt-8">
               Encontrar un regalo

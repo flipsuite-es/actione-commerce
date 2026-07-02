@@ -192,7 +192,7 @@ export default function Checkout({
                   maxLength={200}
                   value={giftMsg}
                   onChange={(e) => setGiftMsg(e.target.value)}
-                  placeholder="Lo escribiremos en una tarjeta para quien lo recibe."
+                  placeholder="Añade una nota para quien lo recibe."
                 />
               </div>
             )}
