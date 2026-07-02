@@ -18,9 +18,9 @@ export async function generateMetadata({
   params: { slug: string };
 }): Promise<Metadata> {
   const product = await getProductBySlug(params.slug);
-  if (!product) return { title: "Producto · Oucy Studios" };
+  if (!product) return { title: "Producto" };
   return {
-    title: `${product.name} · Oucy Studios`,
+    title: product.name,
     description:
       (product.description || "Una pieza de Oucy Studios, joyería atemporal.").slice(0, 160),
     openGraph: {

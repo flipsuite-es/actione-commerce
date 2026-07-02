@@ -7,6 +7,7 @@ import { euro } from "@/lib/format";
 import type { Order, OrderStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Mi cuenta" };
 
 const STATUS: Record<OrderStatus, { label: string; cls: string }> = {
   pending: { label: "Recibido", cls: "bg-amber-100 text-amber-700" },

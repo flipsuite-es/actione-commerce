@@ -87,6 +87,8 @@ export default function AdminProductList({ products }: { products: Product[] }) 
                       <img
                         src={p.images[0]}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
                         className="h-full w-full object-cover"
                       />
                     ) : null}

@@ -7,7 +7,7 @@ import { getNotifications } from "@/lib/admin-data";
 import NotificationBell from "@/components/admin/NotificationBell";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Panel · Oucy Studios" };
+export const metadata = { title: "Panel" };
 
 const nav = [
   { href: "/admin", label: "Panel" },

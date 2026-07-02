@@ -1,7 +1,7 @@
 import SignatureBuilder from "@/components/admin/SignatureBuilder";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Firmas de email · Oucy Studios" };
+export const metadata = { title: "Firmas de email" };
 
 export default function FirmaPage() {
   return (

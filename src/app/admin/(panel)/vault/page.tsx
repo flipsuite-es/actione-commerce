@@ -3,7 +3,7 @@ import { vaultKeyConfigured } from "@/lib/crypto";
 import VaultManager from "@/components/admin/VaultManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Contraseñas · Oucy Studios" };
+export const metadata = { title: "Contraseñas" };
 
 export default async function VaultPage() {
   let entries = [] as Awaited<ReturnType<typeof getVaultEntries>>;

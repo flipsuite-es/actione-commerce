@@ -3,7 +3,10 @@ import Reveal from "@/components/Reveal";
 import { getActiveProducts, getCategories } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Tienda · Oucy Studios" };
+export const metadata = {
+  title: "Tienda",
+  description: "Todas nuestras piezas de acero inoxidable. Joyas para cada día.",
+};
 
 export default async function TiendaPage({
   searchParams,

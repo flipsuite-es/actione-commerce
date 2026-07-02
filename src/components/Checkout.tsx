@@ -117,7 +117,7 @@ export default function Checkout({
               <div className="h-16 w-16 shrink-0 overflow-hidden border border-gold/15 bg-ivory-2">
                 {i.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={i.image} alt="" className="h-full w-full object-cover" />
+                  <img src={i.image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ) : null}
               </div>
               <div className="flex-1">

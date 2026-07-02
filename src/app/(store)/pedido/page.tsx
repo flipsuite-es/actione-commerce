@@ -4,7 +4,7 @@ import OrderTracker from "@/components/OrderTracker";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Seguimiento de tu pedido · Oucy Studios",
+  title: "Seguimiento de tu pedido",
   description:
     "Consulta el estado de tu pedido con tu referencia y tu correo: recibido, pagado y enviado, con número de seguimiento.",
 };

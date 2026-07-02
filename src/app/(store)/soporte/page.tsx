@@ -5,7 +5,7 @@ import { getSettings } from "@/lib/data";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Soporte y contacto · Oucy Studios",
+  title: "Soporte y contacto",
   description:
     "¿Necesitas ayuda con tu pedido o tienes una duda? Abre un ticket de soporte y te respondemos lo antes posible.",
 };

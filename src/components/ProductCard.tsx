@@ -33,6 +33,8 @@ export default function ProductCard({ product }: { product: Product }) {
               <img
                 src={img}
                 alt={product.name}
+                loading="lazy"
+                decoding="async"
                 className={`h-full w-full object-cover transition-all duration-700 ${
                   img2 ? "group-hover:opacity-0" : "group-hover:scale-[1.05]"
                 }`}
@@ -42,6 +44,8 @@ export default function ProductCard({ product }: { product: Product }) {
                 <img
                   src={img2}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="absolute inset-0 h-full w-full scale-105 object-cover opacity-0 transition-opacity duration-700 group-hover:opacity-100"
                 />
               )}
