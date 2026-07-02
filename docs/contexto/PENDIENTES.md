@@ -3,6 +3,15 @@
 > Lista viva. Marcar [x] al completar y AÑADIR lo nuevo. Actualizar y hacer push
 > en cada sesión. Última actualización: sesión de construcción inicial.
 
+## ⏳ RECORDAR AL USUARIO cuando pueda ponerse (config externa; Claude no puede hacerla)
+> El usuario pidió expresamente que se le RECUERDE esto más tarde. Menciónalo al inicio de la próxima sesión.
+- [ ] **Vercel → `VAULT_KEY`** (30+ caracteres aleatorios) + redeploy → cifrado fuerte del gestor de contraseñas.
+- [ ] **Supabase → Auth → SMTP** (Brevo/Resend) *o* desactivar "Confirm email" → que el registro de clientes funcione.
+- [ ] **Supabase → Auth → URL Configuration:** Site URL + Redirect URLs (`…/auth/callback`) para el enlace de confirmación.
+- [ ] (Opcional) **Vercel Production Branch** y **GitHub default branch** → `main` (el deploy YA funciona por sincronización).
+- [ ] **Mejoras de cuenta** (cuando retomemos): favoritos en la cuenta, autorrelleno en checkout, direcciones de envío.
+- [ ] Enviar el **correo a Smile Joyas** (borrador ya redactado en el chat).
+
 ## 🔴 Bloqueante / siguiente paso
 - [x] ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02) vía Supabase MCP (conector ya autorizado
       para la org Oucy). Verificado: settings +6 cols, orders +3 cols, tablas coupons y pages (4 páginas).
