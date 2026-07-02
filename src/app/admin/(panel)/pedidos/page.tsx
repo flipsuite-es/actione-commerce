@@ -27,8 +27,8 @@ export default async function PedidosPage() {
       {orders.length === 0 ? (
         <div className="card p-10 text-center text-muted">Todavía no hay pedidos.</div>
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="card overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-gold/20 text-left text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
                 <th className="px-4 py-3">Cliente</th>

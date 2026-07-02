@@ -216,7 +216,7 @@ export default async function ProductPage({
             <div className="hairline mx-auto" />
             <h2 className="heading mt-4 text-3xl">También te puede gustar</h2>
           </Reveal>
-          <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {relatedList.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

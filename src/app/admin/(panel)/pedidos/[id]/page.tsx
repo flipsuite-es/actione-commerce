@@ -54,8 +54,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
       </div>
 
       {/* Artículos */}
-      <div className="card mt-6 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="card mt-6 overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
           <thead className="border-b border-gold/15 text-left text-xs uppercase tracking-[0.14em] text-muted">
             <tr>
               <th className="px-5 py-3">Artículo</th>

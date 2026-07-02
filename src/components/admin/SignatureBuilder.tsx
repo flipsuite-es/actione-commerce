@@ -160,6 +160,8 @@ function buildCompact(d: SigData) {
         <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${TEXT};margin-top:4px;line-height:1.5;">${inlineContact(d)}</div>
       </td>
     </tr>
+    ${d.tagline ? `<tr><td colspan="2" style="padding-top:10px;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:12px;color:${GOLD};"><span style="color:${GOLD_SOFT};">&#10022;</span>&nbsp;Joyas para cada día.</td></tr>` : ""}
+    ${d.legal ? `<tr><td colspan="2" style="padding-top:8px;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.5;color:#b3a888;">Este mensaje y sus adjuntos son confidenciales y de uso exclusivo del destinatario. Si lo has recibido por error, avísanos y elimínalo.</td></tr>` : ""}
   </table>`;
 }
 
@@ -251,8 +253,6 @@ export default function SignatureBuilder() {
     }
   }
 
-  const isCompact = d.template === "compact";
-
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,360px)_1fr]">
       {/* Formulario */}
@@ -303,16 +303,10 @@ export default function SignatureBuilder() {
         </Field>
 
         <div className="space-y-2 border-t border-gold/15 pt-4">
-          <Toggle checked={d.tagline} onChange={(v) => set("tagline", v)} label="Incluir eslogan («Joyas para cada día»)" disabled={isCompact} />
-          <Toggle checked={d.legal} onChange={(v) => set("legal", v)} label="Incluir aviso de confidencialidad" disabled={isCompact} />
+          <Toggle checked={d.tagline} onChange={(v) => set("tagline", v)} label="Incluir eslogan («Joyas para cada día»)" />
+          <Toggle checked={d.legal} onChange={(v) => set("legal", v)} label="Incluir aviso de confidencialidad" />
           <Toggle checked={d.logo} onChange={(v) => set("logo", v)} label="Usar el logo (imagen) en vez del texto" />
         </div>
-        {isCompact && (
-          <p className="text-xs text-muted">
-            La plantilla compacta omite el eslogan y el aviso legal para mantenerse
-            mínima (el logo sí se puede usar).
-          </p>
-        )}
         {d.logo && (
           <Field label="Dominio donde está alojado el logo">
             <input className={FIELD} value={d.baseUrl} onChange={(e) => set("baseUrl", e.target.value)} placeholder="oucystudios.com" />

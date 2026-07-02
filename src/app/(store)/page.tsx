@@ -73,7 +73,7 @@ export default async function HomePage() {
             <p className="mt-2 text-muted">Recién llegadas</p>
           </Reveal>
           <Reveal>
-            <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {grid.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

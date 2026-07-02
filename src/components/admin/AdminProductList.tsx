@@ -65,8 +65,8 @@ export default function AdminProductList({ products }: { products: Product[] }) 
         </span>
       </div>
 
-      <div className="card overflow-hidden">
-      <table className="w-full text-sm">
+      <div className="card overflow-x-auto">
+      <table className="w-full min-w-[720px] text-sm">
         <thead className="border-b border-gold/20 text-left text-xs uppercase tracking-[0.14em] text-muted">
           <tr>
             <th className="px-4 py-3">Producto</th>

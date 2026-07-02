@@ -85,8 +85,8 @@ export default async function SoportePage({
           {ready ? "No hay tickets en esta vista." : "—"}
         </div>
       ) : (
-        <div className="card mt-6 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="card mt-6 overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-gold/20 text-left text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
                 <th className="px-4 py-3">Asunto</th>

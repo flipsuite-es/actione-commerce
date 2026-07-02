@@ -40,8 +40,8 @@ export default async function SuscriptoresPage() {
           {ready ? "Todavía no hay suscriptores." : "—"}
         </div>
       ) : (
-        <div className="card mt-6 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="card mt-6 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="border-b border-gold/20 text-left text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
                 <th className="px-4 py-3">Correo</th>
