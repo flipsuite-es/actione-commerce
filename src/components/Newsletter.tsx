@@ -1,10 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/lib/toast";
+import { subscribe } from "@/app/(store)/actions";
 
 export default function Newsletter({ compact = false }: { compact?: boolean }) {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return;
+    setBusy(true);
+    const res = await subscribe(email, "newsletter");
+    setBusy(false);
+    if (!res.ok) {
+      toast(res.error || "No se pudo suscribir.");
+      return;
+    }
+    setDone(true);
+  }
 
   return (
     <div className={compact ? "" : "text-center"}>
@@ -25,10 +42,7 @@ export default function Newsletter({ compact = false }: { compact?: boolean }) {
         </p>
       ) : (
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (email) setDone(true);
-          }}
+          onSubmit={onSubmit}
           className={`mx-auto mt-6 flex max-w-md gap-2 ${compact ? "mt-3" : ""}`}
         >
           <input
@@ -39,7 +53,9 @@ export default function Newsletter({ compact = false }: { compact?: boolean }) {
             placeholder="Tu correo"
             className="input flex-1"
           />
-          <button className="btn-gold shrink-0">Avísame</button>
+          <button className="btn-gold shrink-0" disabled={busy}>
+            {busy ? "…" : "Avísame"}
+          </button>
         </form>
       )}
     </div>

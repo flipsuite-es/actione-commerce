@@ -35,7 +35,9 @@ ADN de Action. Marca, tienda y backoffice propios.
 - ✅ Supabase base (schema.sql) aplicado. Backoffice básico operativo.
 - ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02) vía Supabase MCP. Desbloqueado: contenido editable en ajustes, cupones, páginas (4 iniciales sembradas), y descuento/cupón/seguimiento en pedidos.
 - ✅ **Sistema de tickets de soporte** (migración `003_soporte.sql` APLICADA): storefront `/soporte` (abrir + consultar/responder con ref+email) y backoffice `/admin/soporte` (lista, hilo, responder, estado/prioridad) + stat en dashboard.
-- ✅ **Notificaciones internas** (migración `004_notificaciones.sql` APLICADA): campanita en el panel con contador de no leídos. Triggers de DB generan avisos de nuevo ticket, respuesta de cliente y nuevo pedido. Sin correos externos; sondeo cada 30 s.
+- ✅ **Notificaciones internas** (migración `004_notificaciones.sql` APLICADA): campanita en el panel con contador de no leídos. Triggers de DB generan avisos de nuevo ticket, respuesta de cliente, nuevo pedido y nueva reseña. Sin correos externos; sondeo cada 30 s.
+- ✅ **Reseñas de producto** (migración `005` APLICADA): estrellas + opiniones + formulario en la ficha, `aggregateRating` (SEO), moderación en `/admin/resenas`. **Captura real de correos** (newsletter → tabla `subscribers`, `/admin/suscriptores` + export CSV).
+- ✅ Favicon cuadrado propio (`icon.svg`) + corazón simétrico + PWA (manifest/theme-color).
 - ⏳ Subir productos reales por `/admin`. ⏳ Conectar dominio oucystudios.com. ⏳ Pagos (Fase 2).
 
 ## Conector Supabase (ACTUALIZADO)

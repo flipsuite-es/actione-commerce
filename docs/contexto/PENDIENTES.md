@@ -32,8 +32,7 @@
       ya son internos (campanita); esto sería solo para el cliente, si se quiere. Requiere Resend/Brevo.
 - [ ] Anti-spam en el formulario de soporte (rate-limit o captcha) si llega abuso.
 - [ ] **Pagos** (Stripe/Shopify Payments + PayPal + Bizum) cuando haya tráfico/historial (ver `docs/01`, `docs/03`).
-- [ ] Captura de email real (Formspree/Mailchimp/Brevo) para newsletter y muro.
-- [ ] Reseñas gestionables desde el panel (ahora los testimonios son fijos).
+- [ ] Sincronizar los `subscribers` con Mailchimp/Brevo para enviar campañas (ahora se guardan en la DB y se exportan a CSV).
 - [ ] Reordenar productos por arrastre; variantes (tallas de anillo) si se necesita.
 - [ ] Analítica (Vercel Analytics) y píxeles de TikTok/Meta.
 
@@ -50,3 +49,8 @@
       cliente, nuevo pedido) con contador de no leídos, sondeo cada 30 s y marcar leídas. Todo interno, sin emails.
 - [x] **Pulido general** (2026-07-02): JSON-LD de producto (SEO), banner de cookies RGPD, exportar pedidos a CSV
       y buscador/filtros en la lista de productos del panel.
+- [x] **Reseñas de producto** (2026-07-02): migración 005 + estrellas + sección de opiniones con formulario en la
+      ficha + `aggregateRating` (SEO) + moderación en `/admin/resenas` + aviso en la campanita.
+- [x] **Captura real de correos** (2026-07-02): newsletter guarda en `subscribers` (dedupe) + `/admin/suscriptores`
+      con export CSV.
+- [x] **Favicon cuadrado propio** + corazón de favoritos simétrico + PWA (manifest, theme-color) (2026-07-02).

@@ -1,5 +1,5 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
-import type { Category, Page, Product, Settings } from "@/lib/types";
+import type { Category, Page, Product, Review, Settings } from "@/lib/types";
 
 export const DEFAULT_SETTINGS: Settings = {
   id: 1,
@@ -88,6 +88,22 @@ export async function getPages(): Promise<Page[]> {
       .eq("published", true)
       .order("sort", { ascending: true });
     return (data as Page[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Reseñas aprobadas de un producto (RLS ya limita a approved=true). */
+export async function getProductReviews(productId: string): Promise<Review[]> {
+  try {
+    const supabase = createSupabaseServer();
+    const { data } = await supabase
+      .from("reviews")
+      .select("*")
+      .eq("product_id", productId)
+      .eq("approved", true)
+      .order("created_at", { ascending: false });
+    return (data as Review[]) ?? [];
   } catch {
     return [];
   }

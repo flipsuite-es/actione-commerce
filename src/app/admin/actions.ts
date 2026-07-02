@@ -333,3 +333,19 @@ export async function markAllNotificationsRead() {
   const supabase = await requireAdmin();
   await supabase.from("notifications").update({ read: true }).eq("read", false);
 }
+
+/* ---------------- Reseñas ---------------- */
+
+export async function setReviewApproved(id: string, approved: boolean) {
+  const supabase = await requireAdmin();
+  await supabase.from("reviews").update({ approved }).eq("id", id);
+  revalidatePath("/admin/resenas");
+  refreshStore();
+}
+
+export async function deleteReview(id: string) {
+  const supabase = await requireAdmin();
+  await supabase.from("reviews").delete().eq("id", id);
+  revalidatePath("/admin/resenas");
+  refreshStore();
+}

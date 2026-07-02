@@ -6,6 +6,8 @@ import type {
   Order,
   Page,
   Product,
+  Review,
+  Subscriber,
   Ticket,
   TicketMessage,
 } from "@/lib/types";
@@ -126,4 +128,30 @@ export async function getNotifications(
   } catch {
     return { items: [], unread: 0 };
   }
+}
+
+/* ---------------- Reseñas ---------------- */
+
+export interface ReviewWithProduct extends Review {
+  product?: { name: string; slug: string } | null;
+}
+
+export async function getAllReviews(): Promise<ReviewWithProduct[]> {
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from("reviews")
+    .select("*, product:products(name, slug)")
+    .order("created_at", { ascending: false });
+  return (data as ReviewWithProduct[]) ?? [];
+}
+
+/* ---------------- Suscriptores ---------------- */
+
+export async function getSubscribers(): Promise<Subscriber[]> {
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from("subscribers")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data as Subscriber[]) ?? [];
 }

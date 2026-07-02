@@ -15,8 +15,10 @@ const nav = [
   { href: "/admin/categorias", label: "Categorías" },
   { href: "/admin/pedidos", label: "Pedidos" },
   { href: "/admin/soporte", label: "Soporte" },
+  { href: "/admin/resenas", label: "Reseñas" },
   { href: "/admin/cupones", label: "Cupones" },
   { href: "/admin/paginas", label: "Páginas" },
+  { href: "/admin/suscriptores", label: "Suscriptores" },
   { href: "/admin/ajustes", label: "Ajustes" },
 ];
 

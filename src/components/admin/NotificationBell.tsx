@@ -15,6 +15,7 @@ const ICON: Record<NotificationKind, string> = {
   ticket_new: "✉",
   ticket_reply: "↩",
   order_new: "★",
+  review_new: "✎",
 };
 
 function ago(iso: string) {
