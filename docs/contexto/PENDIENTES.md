@@ -5,8 +5,9 @@
 
 ## ⏳ RECORDAR AL USUARIO cuando pueda ponerse (config externa; Claude no puede hacerla)
 - [ ] **Vercel → `VAULT_KEY`** + redeploy → cifrado fuerte del gestor de contraseñas. (Instrucciones dadas 2026-07-02.)
-- [ ] **Supabase → Auth (cuentas de cliente):** el usuario SÍ quiere confirmación de email → configurar **SMTP**
-      (Brevo/Resend) + **Redirect URLs** (`…/auth/callback`). (Instrucciones dadas 2026-07-02.)
+- [x] ✅ **Cuentas de cliente FUNCIONANDO** (2026-07-02): SMTP con **Brevo** + Redirect URLs configurados. Probado:
+      registro → correo de confirmación → enlace → sesión iniciada. (Remitente actual = Gmail del usuario; opcional
+      pasar a `hola@oucystudios.com` autenticando el dominio en Brevo más adelante.)
 - [ ] **Mejoras de cuenta** (cuando retomemos): favoritos en la cuenta, autorrelleno en checkout, direcciones de envío.
 - [x] Ajustes revisados (`/admin/ajustes`) — hecho por el usuario 2026-07-02.
 - [x] Dominio `oucystudios.com` conectado — hecho por el usuario 2026-07-02.
