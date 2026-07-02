@@ -33,6 +33,23 @@ export async function signOut() {
 
 /* ---------------- Productos ---------------- */
 
+/** SKU interno correlativo (control propio, no del proveedor): OUCY-0001, 0002…
+ *  Se basa en el mayor número ya usado con ese prefijo, +1. */
+async function nextSku(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>
+): Promise<string> {
+  const { data } = await supabase
+    .from("products")
+    .select("sku")
+    .ilike("sku", "OUCY-%");
+  let max = 0;
+  for (const row of (data as { sku: string | null }[]) ?? []) {
+    const m = /OUCY-(\d+)/i.exec(row.sku || "");
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `OUCY-${String(max + 1).padStart(4, "0")}`;
+}
+
 export async function saveProduct(formData: FormData) {
   const supabase = await requireAdmin();
   const id = String(formData.get("id") || "");
@@ -41,6 +58,11 @@ export async function saveProduct(formData: FormData) {
     String(formData.get("slug") || "").trim() || slugify(name) || `p-${Date.now()}`;
   const images = JSON.parse(String(formData.get("images") || "[]")) as string[];
 
+  // SKU: lo asignamos nosotros automáticamente para tener control. Se conserva
+  // el existente al editar; al crear (o si viniera vacío) se genera correlativo.
+  let sku = String(formData.get("sku") || "").trim();
+  if (!sku) sku = await nextSku(supabase);
+
   const record = {
     name,
     slug,
@@ -48,7 +70,8 @@ export async function saveProduct(formData: FormData) {
     price: num(formData.get("price")),
     compare_at_price: formData.get("compare_at_price") ? num(formData.get("compare_at_price")) : null,
     stock: Math.round(num(formData.get("stock"))),
-    sku: String(formData.get("sku") || "") || null,
+    sku,
+    supplier_ref: String(formData.get("supplier_ref") || "").trim() || null,
     material: String(formData.get("material") || "") || null,
     category_id: String(formData.get("category_id") || "") || null,
     images,
@@ -161,7 +184,15 @@ export async function suggestProduct(
   imageUrl: string,
   categories: { id: string; name: string }[]
 ): Promise<
-  | { ok: true; name: string; description: string; material: string; category: string }
+  | {
+      ok: true;
+      name: string;
+      description: string;
+      material: string;
+      category: string;
+      price: number | null;
+      compare_at_price: number | null;
+    }
   | { ok: false; error: string }
 > {
   await requireAdmin();
@@ -187,9 +218,12 @@ REGLAS INNEGOCIABLES (publicidad no engañosa — las piezas son de proveedor):
 - Tono de MARCA, elegante y sobrio. Nada de spam de características ("no se oxida", "resistente al agua"...). Describe la pieza y para qué momento es, con gusto.
 - Español de España. Nombre corto y bonito (2–4 palabras). Descripción de 1–2 frases.
 
+PRECIO (orientativo, en EUROS): propón un **precio de venta** coherente con una marca de bijouterie de acero inoxidable elegante pero accesible (rango habitual 15–45 €; piezas más elaboradas hasta ~60 €). Redondea a un precio bonito acabado en 5 o 9 (p. ej. 19.95, 24.95, 29.95). Opcionalmente propón un "precio antes" (compare_at) un poco mayor si la pieza da margen a mostrar oferta; si no, déjalo en null. Es solo una sugerencia editable.
+
 Devuelve tu respuesta EXCLUSIVAMENTE como un objeto JSON válido (sin markdown, sin texto extra) con esta forma exacta:
-{"name": "...", "description": "...", "material": "Acero inoxidable", "category": "..."}
-El campo "category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): ${JSON.stringify(nombresCategorias)}.`;
+{"name": "...", "description": "...", "material": "Acero inoxidable", "category": "...", "price": 24.95, "compare_at_price": null}
+El campo "category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): ${JSON.stringify(nombresCategorias)}.
+"price" es un número (euros) y "compare_at_price" es un número o null.`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -242,11 +276,17 @@ El campo "category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): 
       description?: string;
       material?: string;
       category?: string;
+      price?: number | string | null;
+      compare_at_price?: number | string | null;
     };
 
     const catMatch = categories.find(
       (c) => c.name.toLowerCase() === String(parsed.category || "").toLowerCase()
     );
+    const toPrice = (v: unknown): number | null => {
+      const n = parseFloat(String(v ?? "").replace(",", "."));
+      return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+    };
 
     return {
       ok: true,
@@ -254,6 +294,8 @@ El campo "category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): 
       description: String(parsed.description || "").trim(),
       material: "Acero inoxidable",
       category: catMatch?.name ?? "",
+      price: toPrice(parsed.price),
+      compare_at_price: toPrice(parsed.compare_at_price),
     };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Error al llamar a la IA." };

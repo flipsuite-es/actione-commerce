@@ -39,11 +39,18 @@ backoffice completos y funcionando.
   recorte de fondo (eso requeriría IA/servicio de pago); el fondo lo pone la foto original.
 - **Sugerencias de ficha con IA (visión)** (`suggestProduct` en `admin/actions.ts` + `ProductForm.tsx`): al subir la
   **primera** foto de un producto (si el nombre está vacío) se llama a Claude visión (`claude-opus-4-8`) para proponer
-  **nombre, descripción, material y categoría**; los campos quedan controlados y editables (el admin revisa y guarda).
-  También hay botón manual «✨ Sugerir ficha con IA». La llamada es `fetch` directo a la API de Anthropic (sin SDK nuevo)
-  con un *system prompt* que impone las reglas de marca: material siempre "Acero inoxidable", color plata/dorado como
-  acabado (NUNCA oro/baño/chapado/plata de ley), sin "hipoalergénico". **Requiere `ANTHROPIC_API_KEY` en Vercel**; si
-  falta, devuelve un aviso y la ficha se rellena a mano igual que antes (no bloquea).
+  **nombre, descripción, material, categoría y precio** (precio de venta orientativo + «precio antes» opcional); los
+  campos quedan controlados y editables (el admin revisa y guarda). También hay botón manual «✨ Sugerir ficha con IA».
+  La llamada es `fetch` directo a la API de Anthropic (sin SDK nuevo) con un *system prompt* que impone las reglas de
+  marca: material siempre "Acero inoxidable", color plata/dorado como acabado (NUNCA oro/baño/chapado/plata de ley), sin
+  "hipoalergénico". **Requiere `ANTHROPIC_API_KEY` en Vercel**; si falta, devuelve un aviso y la ficha se rellena a mano
+  igual que antes (no bloquea).
+- **SKU automático (control propio)** (migración **010** + `saveProduct`): el SKU lo asigna el sistema, no se teclea.
+  Al crear un producto sin SKU se genera correlativo **`OUCY-0001`, `OUCY-0002`…** (max+1 de los ya existentes con ese
+  prefijo). En la ficha el campo SKU es de solo lectura («Se asignará automáticamente»). Al editar se conserva el SKU.
+- **Ref. de proveedor** (migración **010**, columna `products.supplier_ref`): campo manual de la ficha con el código de
+  la pieza en el catálogo de **Smile Joyas**, para reponer stock / hacer nuevos pedidos. Uso interno (no se muestra en
+  la tienda). Aparece bajo el nombre en la lista `/admin/productos` (junto al SKU) y el buscador filtra también por él.
 
 ## Vercel
 - Team: `flipsuite-es' projects` (id `team_Z3rTsOhJJI24bIJ67MmXAkiH`).

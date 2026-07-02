@@ -20,6 +20,12 @@ export default function ProductForm({
   const [description, setDescription] = useState(product?.description ?? "");
   const [material, setMaterial] = useState(product?.material ?? "Acero inoxidable");
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
+  const [price, setPrice] = useState(
+    product?.price != null ? String(product.price) : ""
+  );
+  const [compareAt, setCompareAt] = useState(
+    product?.compare_at_price != null ? String(product.compare_at_price) : ""
+  );
 
   const [suggesting, setSuggesting] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
@@ -41,7 +47,9 @@ export default function ProductForm({
         const c = categories.find((x) => x.name === r.category);
         if (c) setCategoryId(c.id);
       }
-      setAiMsg("Sugerencias aplicadas. Revísalas y ajusta lo que quieras antes de guardar.");
+      if (r.price != null) setPrice(String(r.price));
+      if (r.compare_at_price != null) setCompareAt(String(r.compare_at_price));
+      setAiMsg("Sugerencias aplicadas (incluye precio orientativo). Revísalas y ajusta antes de guardar.");
     } catch (err: any) {
       setAiMsg(err?.message || "No se pudieron generar sugerencias.");
     } finally {
@@ -162,7 +170,8 @@ export default function ProductForm({
               type="number"
               step="0.01"
               className="input"
-              defaultValue={product?.price ?? ""}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
               required
             />
           </div>
@@ -173,7 +182,8 @@ export default function ProductForm({
               type="number"
               step="0.01"
               className="input"
-              defaultValue={product?.compare_at_price ?? ""}
+              value={compareAt}
+              onChange={(e) => setCompareAt(e.target.value)}
             />
           </div>
           <div>
@@ -186,8 +196,27 @@ export default function ProductForm({
             />
           </div>
           <div>
-            <label className="label">SKU (opcional)</label>
-            <input name="sku" className="input" defaultValue={product?.sku ?? ""} />
+            <label className="label">SKU (interno)</label>
+            {/* El SKU lo asigna el sistema automáticamente para tener control. */}
+            <input type="hidden" name="sku" value={product?.sku ?? ""} />
+            <input
+              className="input bg-black/5"
+              value={product?.sku ?? "Se asignará automáticamente al guardar"}
+              readOnly
+              disabled
+            />
+          </div>
+          <div>
+            <label className="label">Ref. proveedor (Smile Joyas)</label>
+            <input
+              name="supplier_ref"
+              className="input"
+              defaultValue={product?.supplier_ref ?? ""}
+              placeholder="p. ej. SJ-1234"
+            />
+            <p className="mt-1 text-xs text-muted">
+              Código de la pieza en el catálogo del proveedor, para reponer stock. Uso interno.
+            </p>
           </div>
           <div>
             <label className="label">Material</label>

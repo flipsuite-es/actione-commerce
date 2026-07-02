@@ -17,6 +17,7 @@ export interface Product {
   compare_at_price: number | null;
   stock: number;
   sku: string | null;
+  supplier_ref: string | null;
   material: string | null;
   category_id: string | null;
   images: string[];

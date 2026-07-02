@@ -29,7 +29,8 @@ export default function AdminProductList({ products }: { products: Product[] }) 
       if (
         term &&
         !p.name.toLowerCase().includes(term) &&
-        !(p.sku || "").toLowerCase().includes(term)
+        !(p.sku || "").toLowerCase().includes(term) &&
+        !(p.supplier_ref || "").toLowerCase().includes(term)
       )
         return false;
       return true;
@@ -42,7 +43,7 @@ export default function AdminProductList({ products }: { products: Product[] }) 
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar por nombre o SKU…"
+          placeholder="Buscar por nombre, SKU o ref. proveedor…"
           className="input max-w-xs !py-2.5"
         />
         <div className="flex flex-wrap gap-1">
@@ -93,12 +94,24 @@ export default function AdminProductList({ products }: { products: Product[] }) 
                       />
                     ) : null}
                   </div>
-                  <Link
-                    href={`/admin/productos/${p.id}`}
-                    className="font-medium hover:text-gold-3"
-                  >
-                    {p.name}
-                  </Link>
+                  <div>
+                    <Link
+                      href={`/admin/productos/${p.id}`}
+                      className="font-medium hover:text-gold-3"
+                    >
+                      {p.name}
+                    </Link>
+                    {(p.sku || p.supplier_ref) && (
+                      <div className="text-[11px] text-muted">
+                        {p.sku && <span>{p.sku}</span>}
+                        {p.supplier_ref && (
+                          <span>
+                            {p.sku ? " · " : ""}Prov: {p.supplier_ref}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </td>
               <td className="px-4 py-3">{euro(p.price)}</td>
