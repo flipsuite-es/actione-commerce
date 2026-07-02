@@ -23,10 +23,11 @@ interface PhotoCleanup {
   loading?: boolean;
   cleanedUrl?: string;
   safe?: boolean;
+  score?: number;
   changes?: string[];
   note?: string;
   error?: string;
-  attempts?: number;
+  attempts?: number; // acumulado (todas las tandas)
 }
 
 export default function ProductForm({
@@ -49,11 +50,23 @@ export default function ProductForm({
   const [cleanup, setCleanup] = useState<Record<string, PhotoCleanup>>({});
 
   async function runCleanup(url: string) {
-    setCleanup((prev) => ({ ...prev, [url]: { loading: true } }));
+    const current = cleanup[url];
+    const prevBest =
+      current?.cleanedUrl != null
+        ? {
+            cleanedUrl: current.cleanedUrl,
+            safe: current.safe ?? false,
+            score: current.score ?? 0,
+            changes: current.changes ?? [],
+            note: current.note ?? "",
+          }
+        : null;
+    const prevAttempts = current?.attempts ?? 0;
+    setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: true, error: undefined } }));
     try {
-      const r = await cleanupPhoto(url);
+      const r = await cleanupPhoto(url, prevBest);
       if (!r.ok) {
-        setCleanup((prev) => ({ ...prev, [url]: { error: r.error } }));
+        setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: false, error: r.error } }));
         return;
       }
       setCleanup((prev) => ({
@@ -61,15 +74,16 @@ export default function ProductForm({
         [url]: {
           cleanedUrl: r.cleanedUrl,
           safe: r.safe,
+          score: r.score,
           changes: r.changes,
           note: r.note,
-          attempts: r.attempts,
+          attempts: prevAttempts + r.attempts,
         },
       }));
     } catch (err: any) {
       setCleanup((prev) => ({
         ...prev,
-        [url]: { error: err?.message || "No se pudo quitar el reflejo." },
+        [url]: { ...prev[url], loading: false, error: err?.message || "No se pudo quitar el reflejo." },
       }));
     }
   }
@@ -486,6 +500,7 @@ export default function ProductForm({
             <div key={src} className="mt-3 rounded border border-gold/20 p-3">
               <p className="text-xs font-medium text-ink-soft">
                 Foto {i + 1} — revisa antes de usar
+                {typeof cl.score === "number" ? ` · fidelidad ${cl.score}/100` : ""}
                 {cl.attempts && cl.attempts > 1 ? ` · ${cl.attempts} intentos` : ""}
               </p>
               <div className="mt-2 grid grid-cols-2 gap-3">
@@ -531,13 +546,21 @@ export default function ProductForm({
               )}
               {cl.note && <p className="mt-1 text-xs text-muted">{cl.note}</p>}
 
-              <div className="mt-2 flex flex-wrap gap-3">
+              <div className="mt-2 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() => useCleaned(src, cl.cleanedUrl!)}
                   className={cl.safe ? "btn-gold text-sm" : "btn-outline text-sm"}
                 >
-                  Usar la corregida
+                  Usar esta
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runCleanup(src)}
+                  disabled={cl.loading}
+                  className="btn-outline text-sm disabled:opacity-50"
+                >
+                  {cl.loading ? "Probando…" : "✨ Seguir probando"}
                 </button>
                 <button
                   type="button"
@@ -545,13 +568,6 @@ export default function ProductForm({
                   className="text-sm text-muted hover:text-gold-3"
                 >
                   Quedarme con la original
-                </button>
-                <button
-                  type="button"
-                  onClick={() => runCleanup(src)}
-                  className="text-sm text-muted hover:text-gold-3"
-                >
-                  Reintentar
                 </button>
               </div>
             </div>

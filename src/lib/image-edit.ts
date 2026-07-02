@@ -19,7 +19,9 @@ export function imageEditConfigured(): boolean {
   return !!process.env.FAL_KEY;
 }
 
-const FAL_MODEL = "fal-ai/flux-pro/kontext";
+// FLUX Kontext MAX = variante premium (mejor preservación/calidad) para el caso
+// difícil de la joya espejada. Se puede forzar otro modelo con FAL_IMAGE_MODEL.
+const FAL_MODEL = process.env.FAL_IMAGE_MODEL || "fal-ai/flux-pro/kontext/max";
 
 const REFLECTION_PROMPT =
   "Retouch this jewelry product photo so it looks as if it was shot inside a clean white light tent, with large plain white cards all around the front. The polished metal should therefore reflect ONLY smooth, clean, pure WHITE and soft warm highlights — as if everything in front of the piece were a plain white surface. " +

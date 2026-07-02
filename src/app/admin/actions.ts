@@ -359,26 +359,30 @@ async function editAndStore(
   }
 }
 
-/** Auditoría anti-engaño: Claude compara original vs editada. */
+/** Auditoría anti-engaño: Claude compara original vs editada y PUNTÚA la
+ *  fidelidad (0–100) para poder quedarnos con el mejor intento. */
 async function auditEdit(
   originalUrl: string,
   editedUrl: string,
 ): Promise<
-  | { ok: true; safe: boolean; changes: string[]; note: string }
+  | { ok: true; safe: boolean; score: number; changes: string[]; note: string }
   | { ok: false; error: string }
 > {
   const system = `${BRAND_RULES}
 
 Eres el control ANTI-PUBLICIDAD-ENGAÑOSA de Oucy Studios. Te doy DOS fotos del mismo producto de joyería: la primera es la ORIGINAL y la segunda es una versión EDITADA por IA para quitarle el reflejo del fotógrafo.
 Comprueba que la EDITADA muestra EXACTAMENTE el mismo producto real que la original: misma forma, mismo tamaño y proporciones, mismo color y tipo de acabado (un acero color dorado debe verse igual de brillante y pulido, NO mate ni apagado, NO más brillante ni como oro real; un color plata igual), sin manchas nuevas, sin gemas añadidas, sin ocultar arañazos o defectos reales de la pieza. Lo ÚNICO que puede haber cambiado es el contenido del reflejo/entorno y quizá el fondo.
+Puntúa además la FIDELIDAD del 0 al 100: 100 = idéntica al producto original salvo que el reflejo es más limpio; baja mucho si el acabado se ha vuelto mate/apagado, si hay manchas/tonos raros, o si cambia forma/color.
 Devuelve EXCLUSIVAMENTE un JSON:
-{"same_product": true, "only_reflection_changed": true, "changes": [], "safe_to_use": true, "note": "..."}
+{"same_product": true, "only_reflection_changed": true, "score": 95, "changes": [], "safe_to_use": true, "note": "..."}
+- "score": número 0–100 de fidelidad al producto real.
 - "changes": lista breve en español de cualquier diferencia que afecte al PRODUCTO (vacía si solo cambió el reflejo/fondo).
 - "safe_to_use": true solo si es el mismo producto y no hay ningún riesgo de engaño.`;
 
   const audit = await askJSON<{
     same_product?: boolean;
     only_reflection_changed?: boolean;
+    score?: number | string;
     changes?: unknown;
     safe_to_use?: boolean;
     note?: string;
@@ -408,22 +412,32 @@ Devuelve EXCLUSIVAMENTE un JSON:
     audit.data.safe_to_use === true &&
     audit.data.only_reflection_changed !== false &&
     changes.length === 0;
-  return { ok: true, safe, changes, note: String(audit.data.note || "") };
+  const rawScore = parseFloat(String(audit.data.score ?? ""));
+  const score = Number.isFinite(rawScore)
+    ? Math.max(0, Math.min(100, Math.round(rawScore)))
+    : safe
+      ? 90
+      : 40;
+  return { ok: true, safe, score, changes, note: String(audit.data.note || "") };
 }
 
 /** Quita el reflejo de una foto con IA y AUDITA el resultado (anti-publicidad
  *  engañosa). REINTENTA automáticamente (hasta `MAX_ATTEMPTS`) hasta que la
  *  auditoría confirme que es fiel; si ninguno pasa, devuelve el último con
  *  `safe=false` y recomienda usar la original. La original NUNCA se borra. */
-export async function cleanupPhoto(imageUrl: string): Promise<
-  | {
-      ok: true;
-      cleanedUrl: string;
-      safe: boolean;
-      changes: string[];
-      note: string;
-      attempts: number;
-    }
+type CleanupBest = {
+  cleanedUrl: string;
+  safe: boolean;
+  score: number;
+  changes: string[];
+  note: string;
+};
+
+export async function cleanupPhoto(
+  imageUrl: string,
+  prevBest?: CleanupBest | null,
+): Promise<
+  | (CleanupBest & { ok: true; attempts: number })
   | { ok: false; error: string }
 > {
   const supabase = await requireAdmin();
@@ -436,49 +450,55 @@ export async function cleanupPhoto(imageUrl: string): Promise<
     };
   }
 
-  const MAX_ATTEMPTS = 3;
-  let last:
-    | { cleanedUrl: string; safe: boolean; changes: string[]; note: string }
-    | null = null;
+  const MAX_ATTEMPTS = 3; // por tanda; el admin puede pedir más tandas
+  let best: CleanupBest | null = prevBest ?? null;
+  let done = 0;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const seed = Math.floor(Math.random() * 1_000_000_000);
     const stored = await editAndStore(supabase, imageUrl, seed);
     if (!stored.ok) {
-      if (last) break; // ya tenemos algo previo; cortamos
+      if (best) break; // conservamos el mejor que tuviéramos
       return { ok: false, error: stored.error };
     }
+    done = attempt;
 
     const audit = await auditEdit(imageUrl, stored.url);
-    // Sin auditoría (p. ej. falta ANTHROPIC_API_KEY) no podemos verificar y
-    // reintentar no aporta: devolvemos sin verificar para que decida el admin.
+    // Sin auditoría (falta ANTHROPIC_API_KEY) no podemos puntuar ni verificar.
     if (!audit.ok) {
       return {
         ok: true,
         cleanedUrl: stored.url,
         safe: false,
+        score: 0,
         changes: ["No se pudo auditar automáticamente (falta ANTHROPIC_API_KEY); compárala tú."],
         note: "",
         attempts: attempt,
       };
     }
 
-    last = { cleanedUrl: stored.url, safe: audit.safe, changes: audit.changes, note: audit.note };
-    if (audit.safe) {
-      return { ok: true, ...last, attempts: attempt };
-    }
+    const candidate: CleanupBest = {
+      cleanedUrl: stored.url,
+      safe: audit.safe,
+      score: audit.score,
+      changes: audit.changes,
+      note: audit.note,
+    };
+    if (!best || candidate.score > best.score) best = candidate;
+
+    // Suficientemente buena: paramos para no gastar de más.
+    if (best.safe && best.score >= 97) break;
   }
 
-  // Ningún intento pasó la auditoría: devolvemos el último con aviso claro.
-  return {
-    ok: true,
-    cleanedUrl: last!.cleanedUrl,
-    safe: false,
-    changes: last!.changes,
-    note:
-      "Tras varios intentos la IA no logró una versión que respete el acabado de esta pieza. Para esta foto, usa la original o la del proveedor.",
-    attempts: MAX_ATTEMPTS,
-  };
+  if (!best) return { ok: false, error: "No se pudo generar ninguna versión." };
+
+  const note = best.safe
+    ? best.note
+    : best.score >= 80
+      ? "Muy cerca, pero la auditoría aún ve algún cambio en el producto. Pulsa «Seguir probando» para intentar mejorarla."
+      : "La IA todavía no logra una versión fiel al acabado de esta pieza (muy espejada). Sigue probando o usa la foto original.";
+
+  return { ok: true, ...best, note, attempts: done };
 }
 
 /** Copiloto interno del panel: responde sobre el estado de la tienda y redacta

@@ -80,9 +80,11 @@ backoffice completos y funcionando.
      modelo reinventara y apagara el metal), sino **«simula que se disparó dentro de una carpa/cartulina blanca»**: el
      metal refleja solo blanco limpio + brillos cálidos, manteniendo el dorado/plateado brillante, forma, tamaño y
      acabado; sin gemas ni ocultar defectos. `guidance_scale` 2.5 (pegado a la foto original). **Reintenta solo** (hasta
-     3 intentos con semilla distinta) hasta que la auditoría de Claude confirme que es fiel; si ninguno pasa, devuelve
-     el último con `safe=false` y recomienda usar la original. OJO: la joya muy espejada (gota pulida) es el peor caso
-     y a menudo NO se consigue una versión válida → usar la foto original/del proveedor. `maxDuration=60`.
+     3 intentos por tanda con semilla distinta) y la auditoría **puntúa la fidelidad (0–100)**: se queda con el
+     **mejor intento**, no con el primero que pasa. Botón **«Seguir probando»** que hace más tandas de forma acumulativa
+     (sin colgar la función; el cliente pasa el mejor previo como `prevBest`). Usa **FLUX Kontext MAX** (`FAL_IMAGE_MODEL`
+     para forzar otro). Si nada llega a fiel, avisa y recomienda la original. OJO: la joya muy espejada (gota pulida) es
+     el peor caso. `maxDuration=60`.
   6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): procesado **determinista** con sharp (ajustes GLOBALES
      de luz/contraste/saturación/nitidez, como el "editar" del móvil). NO usa IA generativa: no inventa píxeles ni cambia
      forma/color/acabado → **nunca es publicidad engañosa**. Gratis, instantáneo, sin claves. Botón «Mejorar calidad» por
