@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Oucy Studios",
     short_name: "Oucy",
-    description: "Joyas doradas de acero, elegantes y atemporales, que no se oxidan.",
+    description: "Joyería dorada atemporal, diseñada para llevar cada día.",
     start_url: "/",
     display: "standalone",
     background_color: "#fbf8f1",

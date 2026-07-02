@@ -5,9 +5,9 @@ export default function AnnouncementBar({ text }: { text?: string }) {
     ? [text]
     : [
         "Envío gratis desde 24,90 €",
-        "Acero que no se oxida",
-        "Apto para piel sensible",
-        "Envíos 24–72 h desde España",
+        "Diseñado en estudio",
+        "Piezas atemporales",
+        "Envío desde España con seguimiento",
       ];
   const row = [...items, ...items, ...items];
   return (

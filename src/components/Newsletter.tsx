@@ -29,10 +29,10 @@ export default function Newsletter({ compact = false }: { compact?: boolean }) {
         <>
           <p className="kicker">Comunidad Oucy</p>
           <h2 className="heading mt-3 text-3xl sm:text-4xl">
-            Acceso anticipado a cada drop
+            Entra en el círculo Oucy
           </h2>
           <p className="mx-auto mt-3 max-w-md text-muted">
-            Novedades, chollos y las piezas que no vuelven. Sin spam.
+            Nuevas piezas, novedades y acceso anticipado. Sin ruido.
           </p>
         </>
       )}

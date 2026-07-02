@@ -3,7 +3,7 @@ import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
 import Testimonials from "@/components/Testimonials";
 import { getActiveProducts, getSettings, getRecentReviews } from "@/lib/data";
-import { IconArrow, IconDrop, IconSparkle, IconGift } from "@/components/icons";
+import { IconArrow, IconHeart, IconSparkle, IconGift } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export default async function HomePage() {
       <section className="relative overflow-hidden">
         <div className="container-lux grid items-center gap-10 py-16 md:grid-cols-2 md:py-24">
           <Reveal className="text-center md:text-left">
-            <p className="kicker">Acero dorado · no se oxida</p>
+            <p className="kicker">Joyería dorada atemporal</p>
             <h1 className="heading mt-6 text-5xl italic sm:text-6xl lg:text-7xl">
               {settings.tagline}
             </h1>
@@ -39,9 +39,9 @@ export default async function HomePage() {
               </Link>
             </div>
             <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-2 text-[11px] uppercase tracking-[0.16em] text-muted md:justify-start">
-              <span>No se oxida</span>
-              <span>Piel sensible</span>
-              <span>Envíos 24–72 h</span>
+              <span>Diseñado en estudio</span>
+              <span>Para cada día</span>
+              <span>Envío desde España</span>
             </div>
           </Reveal>
 
@@ -70,7 +70,7 @@ export default async function HomePage() {
           <Reveal className="mb-10 text-center">
             <div className="hairline mx-auto" />
             <h2 className="heading mt-4 text-4xl">Novedades</h2>
-            <p className="mt-2 text-muted">Seleccionadas a mano · lotes limitados</p>
+            <p className="mt-2 text-muted">Lo último del estudio</p>
           </Reveal>
           <Reveal>
             <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-4">
@@ -91,9 +91,9 @@ export default async function HomePage() {
       <section className="container-lux py-20">
         <div className="grid gap-8 sm:grid-cols-3">
           {[
-            { icon: IconDrop, t: "No se oxida", s: "Acero inoxidable dorado que resiste agua, sudor, gym y ducha. No se pone negro." },
-            { icon: IconSparkle, t: "Apto para piel sensible", s: "Sin níquel liberado. La joya que sí puedes llevar cada día sin que te irrite." },
-            { icon: IconGift, t: "Lista para regalar", s: "Packaging cuidado y piezas atemporales. El detalle que parece de joyería." },
+            { icon: IconSparkle, t: "Diseño atemporal", s: "Piezas que no pasan de moda, para llevar hoy y dentro de muchos años." },
+            { icon: IconGift, t: "Para ti y para regalar", s: "El detalle que alegra un día cualquiera, con un packaging cuidado listo para sorprender." },
+            { icon: IconHeart, t: "Hechas para acompañarte", s: "Un dorado cuidado, pensado para tu día a día y para quedarse contigo." },
           ].map(({ icon: Icon, t, s }, i) => (
             <Reveal key={t} delay={i * 90} className="text-center">
               <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-gold/30 text-gold-3">
@@ -110,13 +110,13 @@ export default async function HomePage() {
       <section id="regalo" className="border-y border-gold/15 bg-white/40">
         <div className="container-lux grid items-center gap-10 py-20 md:grid-cols-2">
           <Reveal>
-            <p className="kicker">El regalo perfecto</p>
+            <p className="kicker">Para regalar</p>
             <h2 className="heading mt-4 text-4xl sm:text-5xl">
-              Que parezca de joyería, <span className="gold-text italic">sin el precio</span>.
+              El regalo que <span className="gold-text italic">se recuerda</span>.
             </h2>
             <p className="mt-4 max-w-md text-ink-soft">
-              Piezas elegantes de perla y oro, con packaging bonito, listas para
-              sorprender. Para un cumpleaños, un aniversario o un “porque sí”.
+              Piezas elegantes con un packaging cuidado, listas para sorprender.
+              Para un cumpleaños, un aniversario o un “porque sí”.
             </p>
             <Link href="/tienda" className="btn-gold mt-8">
               Encontrar un regalo

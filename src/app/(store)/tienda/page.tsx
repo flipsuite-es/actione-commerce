@@ -20,7 +20,7 @@ export default async function TiendaPage({
       <Reveal className="mb-8 text-center">
         <div className="hairline mx-auto" />
         <h1 className="heading mt-4 text-4xl sm:text-5xl">La colección</h1>
-        <p className="mt-2 text-muted">Joyas doradas de acero · seleccionadas a mano</p>
+        <p className="mt-2 text-muted">Todas nuestras piezas</p>
       </Reveal>
 
       {products.length === 0 ? (

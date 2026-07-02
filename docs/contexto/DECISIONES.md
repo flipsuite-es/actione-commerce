@@ -20,8 +20,9 @@
 ## Marca
 - **Nombre:** **Oucy Studios** · **Dominio:** `oucystudios.com` (`.com` propio; se descartaron nombres
   cuyo `.com` no era del usuario). Estética blanco/ivory + oro, serif elegante.
-- **Tagline:** "Joyas que duran, no se oxidan."
-- **Reglas de honestidad:** perlas = "sintéticas", "acero dorado/baño de oro" (nunca "oro"), nada de copias/IP.
+- **Tagline:** "Oro para cada día." (antes "Joyas que duran, no se oxidan" — descartada por sonar a producto, no a marca).
+- **Tono de voz (2026-07-02):** **de MARCA**, no de producto. Aspiracional, elegante, mínimo en lo técnico. Se habla de estilo, atemporalidad, día a día y regalar; el estudio/atelier. Los claims de producto ("acero", "no se oxida", "hipoalergénico/níquel") salen **solo lo mínimo y necesario**: en la ficha (Materiales y cuidado) y en la página `/cuidado`. NO en hero, testimonios, footer, firma, metadata ni anuncios. (Petición explícita del usuario.)
+- **Reglas de honestidad:** perlas = "sintéticas", "acero dorado/baño de oro" (nunca "oro" a secas en fichas/materiales), nada de copias/IP. (Compatible con el tono de marca: el material real se dice donde toca, sin convertirlo en el eslogan.)
 
 ## Canales (ver `docs/19`)
 - **Descubrir:** Instagram + TikTok (contenido diario, formato *antes/después* y try-on).

@@ -22,7 +22,7 @@ export async function generateMetadata({
   return {
     title: `${product.name} · Oucy Studios`,
     description:
-      (product.description || "Joya de acero dorado que no se oxida.").slice(0, 160),
+      (product.description || "Una pieza de Oucy Studios, joyería dorada atemporal.").slice(0, 160),
     openGraph: {
       title: product.name,
       description: product.description || undefined,
@@ -62,7 +62,7 @@ export default async function ProductPage({
     "@type": "Product",
     name: product.name,
     description:
-      product.description || "Joya de acero inoxidable dorado que no se oxida.",
+      product.description || "Una pieza de Oucy Studios, joyería dorada atemporal.",
     image: product.images?.length ? product.images : undefined,
     sku: product.sku || undefined,
     brand: { "@type": "Brand", name: "Oucy Studios" },
@@ -131,7 +131,7 @@ export default async function ProductPage({
           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-gold-3">
             {product.stock > 0
               ? product.stock <= 5
-                ? `Solo quedan ${product.stock} · lote limitado`
+                ? `Solo quedan ${product.stock}`
                 : "Disponible"
               : "Agotado — vuelve pronto"}
           </p>
@@ -147,9 +147,9 @@ export default async function ProductPage({
           {/* detalles */}
           <div className="mt-8 divide-y divide-gold/15 border-y border-gold/15">
             <Detail title="Materiales y cuidado">
-              {product.material || "Acero inoxidable dorado"}. No se oxida, resiste el
-              agua y no mancha la piel. Guárdalo seco y evita el contacto directo con
-              perfume para que dure aún más.
+              {product.material || "Acero inoxidable dorado"}. Guárdala en un lugar
+              seco y evita el contacto directo con perfume o cremas para conservar su
+              brillo.
             </Detail>
             <Detail title="Envíos">
               Envío en 24–72 h desde España con seguimiento. Gratis a partir de 24,90 €.

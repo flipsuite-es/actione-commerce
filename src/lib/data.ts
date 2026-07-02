@@ -4,7 +4,7 @@ import type { Category, Page, Product, Review, Settings } from "@/lib/types";
 export const DEFAULT_SETTINGS: Settings = {
   id: 1,
   shop_name: "Oucy Studios",
-  tagline: "Joyas que duran, no se oxidan.",
+  tagline: "Oro para cada día.",
   announcement: "",
   prelaunch_enabled: true,
   access_code: "oucy2026",
@@ -15,9 +15,9 @@ export const DEFAULT_SETTINGS: Settings = {
   whatsapp_url: "",
   contact_email: "",
   hero_subtitle:
-    "Joyas elegantes y atemporales que parecen de joyería. Para llevar cada día y para regalar — sin que se estropeen.",
+    "Joyas doradas atemporales, diseñadas en nuestro estudio para acompañarte cada día y para regalar.",
   story_text:
-    "Creemos que llevar algo bonito y elegante no debería costar una fortuna ni estropearse en un mes. Seleccionamos a mano joyas de acero inoxidable dorado —de las que no se oxidan ni manchan la piel— pensadas para durar y acompañarte cada día.",
+    "Oucy Studios nace de una idea sencilla: llevar algo bonito no debería ser un lujo reservado para las grandes ocasiones. Diseñamos joyas doradas atemporales, pensadas para tu día a día y para los momentos que quieres recordar. Piezas para tener siempre, para regalarte y para regalar.",
 };
 
 /** Rellena los campos que aún no existan (antes de correr la migración 002). */

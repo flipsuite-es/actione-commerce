@@ -3,17 +3,17 @@ import type { Review } from "@/lib/types";
 
 const FALLBACK = [
   {
-    q: "Llevo el anillo desde hace meses, en la ducha y el gym, y sigue como el primer día. No se ha puesto negro.",
+    q: "Me lo pongo con todo y siempre me preguntan de dónde es. Se ha vuelto mi sello.",
     a: "Lucía M.",
     r: 5,
   },
   {
-    q: "Tengo la piel súper sensible y es de lo poco que puedo llevar sin que me irrite. Además preciosos.",
+    q: "Elegante sin esfuerzo. Es de esas piezas que sientes tuyas desde el primer día.",
     a: "Marta R.",
     r: 5,
   },
   {
-    q: "Lo pedí como regalo y llegó en 2 días con un packaging monísimo. Parecen de joyería de verdad.",
+    q: "Lo regalé y fue un acierto total. El detalle y la presentación, de diez.",
     a: "Andrea G.",
     r: 5,
   },

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Newsletter from "./Newsletter";
-import { IconInstagram, IconTiktok, IconTruck, IconDrop, IconSparkle } from "./icons";
+import { IconInstagram, IconTiktok, IconTruck, IconGift, IconSparkle } from "./icons";
 import type { Page, Settings } from "@/lib/types";
 
 export default function SiteFooter({
@@ -28,9 +28,9 @@ export default function SiteFooter({
 
       <div className="container-lux grid gap-6 border-b border-gold/10 py-10 sm:grid-cols-3">
         {[
-          { icon: IconDrop, t: "No se oxida", s: "Acero inoxidable, resiste el agua" },
-          { icon: IconSparkle, t: "Piel sensible", s: "Sin níquel liberado, hipoalergénico" },
-          { icon: IconTruck, t: "Envíos 24–72 h", s: "Desde España, con seguimiento" },
+          { icon: IconSparkle, t: "Diseño atemporal", s: "Piezas pensadas para quedarse" },
+          { icon: IconGift, t: "Para regalar", s: "Con un packaging cuidado" },
+          { icon: IconTruck, t: "Envío desde España", s: "Preparado con mimo, con seguimiento" },
         ].map(({ icon: Icon, t, s }) => (
           <div key={t} className="flex items-center gap-4">
             <span className="grid h-11 w-11 place-items-center rounded-full border border-gold/30 text-gold-3">
@@ -48,7 +48,7 @@ export default function SiteFooter({
         <div className="sm:col-span-1">
           <p className="font-serif text-2xl">{settings.shop_name}</p>
           <p className="mt-3 max-w-xs text-sm text-muted">
-            Joyas doradas de acero, elegantes y atemporales. Hecho en España.
+            Estudio de joyería dorada. Piezas atemporales, para llevar cada día.
           </p>
           <div className="mt-4 flex gap-3 text-gold-3">
             {settings.instagram_url && (
