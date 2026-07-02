@@ -299,125 +299,142 @@ export default function ProductForm({
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         {aiMsg && <p className="mt-2 text-sm text-muted">{aiMsg}</p>}
 
-        {/* Avisos de control de calidad de foto + borrado de reflejo con IA */}
+        {/* Avisos de control de calidad de foto (solo texto) */}
         {images.some((src) => {
           const c = qc[src];
           return c && !c.checking && (c.reflection || !c.publishable);
         }) && (
-          <div className="mt-3 space-y-3 rounded border border-red-300 bg-red-50 p-3 text-sm">
+          <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm">
             <p className="font-medium text-red-700">Revisa estas fotos antes de publicar:</p>
-            {images.map((src, i) => {
-              const c = qc[src];
-              if (!c || c.checking || (!c.reflection && c.publishable)) return null;
-              const items = [
-                ...(c.reflection ? ["se te ve reflejada / sale el móvil"] : []),
-                ...c.problems.filter((p) => !/reflej|móvil|movil|fotograf/i.test(p)),
-              ];
-              const cl = cleanup[src];
-              return (
-                <div key={src} className="rounded bg-white/60 p-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-red-700">
-                    <span>
-                      <span className="font-medium">Foto {i + 1}:</span>{" "}
-                      {items.join(" · ") || c.note || "revisar"}
-                    </span>
-                    {imageEditEnabled && c.reflection && !cl?.cleanedUrl && (
-                      <button
-                        type="button"
-                        onClick={() => runCleanup(src)}
-                        disabled={cl?.loading}
-                        className="btn-outline shrink-0 px-3 py-1 text-xs disabled:opacity-50"
-                      >
-                        {cl?.loading ? "Quitando reflejo…" : "✨ Quitar reflejo con IA"}
-                      </button>
-                    )}
-                  </div>
-
-                  {cl?.error && <p className="mt-1 text-xs text-red-600">{cl.error}</p>}
-
-                  {/* Comparativa original vs corregida (el admin aprueba) */}
-                  {cl?.cleanedUrl && (
-                    <div className="mt-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <figure>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={src} alt="original" className="w-full border border-gold/20" />
-                          <figcaption className="mt-1 text-center text-[11px] text-muted">
-                            Original
-                          </figcaption>
-                        </figure>
-                        <figure>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={cl.cleanedUrl}
-                            alt="sin reflejo"
-                            className="w-full border border-gold/20"
-                          />
-                          <figcaption className="mt-1 text-center text-[11px] text-muted">
-                            Sin reflejo (IA)
-                          </figcaption>
-                        </figure>
-                      </div>
-
-                      {cl.safe ? (
-                        <p className="mt-2 text-xs text-emerald-700">
-                          ✓ Auditoría IA: es el mismo producto, solo se ha quitado el
-                          reflejo. Seguro de usar.
-                        </p>
-                      ) : (
-                        <div className="mt-2 text-xs text-red-700">
-                          <p className="font-medium">
-                            ⚠ La auditoría detectó cambios en el producto — no la uses si
-                            altera la pieza:
-                          </p>
-                          {cl.changes && cl.changes.length > 0 && (
-                            <ul className="ml-4 list-disc">
-                              {cl.changes.map((ch, k) => (
-                                <li key={k}>{ch}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )}
-                      {cl.note && <p className="mt-1 text-xs text-muted">{cl.note}</p>}
-
-                      <div className="mt-2 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={() => useCleaned(src, cl.cleanedUrl!)}
-                          className={cl.safe ? "btn-gold text-sm" : "btn-outline text-sm"}
-                        >
-                          Usar la corregida
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => dismissCleanup(src)}
-                          className="text-sm text-muted hover:text-gold-3"
-                        >
-                          Quedarme con la original
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => runCleanup(src)}
-                          className="text-sm text-muted hover:text-gold-3"
-                        >
-                          Reintentar
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            <p className="text-xs text-red-600/80">
+            <ul className="mt-1 space-y-1 text-red-700">
+              {images.map((src, i) => {
+                const c = qc[src];
+                if (!c || c.checking || (!c.reflection && c.publishable)) return null;
+                const items = [
+                  ...(c.reflection ? ["se te ve reflejada / sale el móvil"] : []),
+                  ...c.problems.filter((p) => !/reflej|móvil|movil|fotograf/i.test(p)),
+                ];
+                return (
+                  <li key={src}>
+                    <span className="font-medium">Foto {i + 1}:</span>{" "}
+                    {items.join(" · ") || c.note || "revisar"}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-xs text-red-600/80">
               Consejo: lo más limpio y gratis es usar la foto del proveedor o disparar con
               una cartulina blanca con un agujero para el objetivo.
-              {imageEditEnabled
-                ? " Si no, prueba a quitar el reflejo con IA (revisa siempre el resultado)."
-                : ""}
             </p>
           </div>
         )}
+
+        {/* Quitar reflejo con IA: disponible para cualquier foto (si hay FAL_KEY) */}
+        {imageEditEnabled && images.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+            <span>✨ Quitar reflejo con IA:</span>
+            {images.map((src, i) =>
+              cleanup[src]?.cleanedUrl ? null : (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => runCleanup(src)}
+                  disabled={cleanup[src]?.loading}
+                  className="btn-outline px-2 py-1 text-xs disabled:opacity-50"
+                >
+                  {cleanup[src]?.loading ? `Foto ${i + 1}…` : `Foto ${i + 1}`}
+                </button>
+              ),
+            )}
+          </div>
+        )}
+
+        {/* Paneles de comparación (original vs sin reflejo). El admin aprueba. */}
+        {images.map((src, i) => {
+          const cl = cleanup[src];
+          if (!cl) return null;
+          if (cl.error) {
+            return (
+              <p key={src} className="mt-2 text-xs text-red-600">
+                Foto {i + 1}: {cl.error}
+              </p>
+            );
+          }
+          if (!cl.cleanedUrl) return null;
+          return (
+            <div key={src} className="mt-3 rounded border border-gold/20 p-3">
+              <p className="text-xs font-medium text-ink-soft">
+                Foto {i + 1} — revisa antes de usar
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <figure>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="original" className="w-full border border-gold/20" />
+                  <figcaption className="mt-1 text-center text-[11px] text-muted">
+                    Original
+                  </figcaption>
+                </figure>
+                <figure>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={cl.cleanedUrl}
+                    alt="sin reflejo"
+                    className="w-full border border-gold/20"
+                  />
+                  <figcaption className="mt-1 text-center text-[11px] text-muted">
+                    Sin reflejo (IA)
+                  </figcaption>
+                </figure>
+              </div>
+
+              {cl.safe ? (
+                <p className="mt-2 text-xs text-emerald-700">
+                  ✓ Auditoría IA: es el mismo producto, solo se ha quitado el reflejo.
+                  Seguro de usar.
+                </p>
+              ) : (
+                <div className="mt-2 text-xs text-red-700">
+                  <p className="font-medium">
+                    ⚠ La auditoría no confirma que sea idéntico — compárala bien antes de
+                    usarla:
+                  </p>
+                  {cl.changes && cl.changes.length > 0 && (
+                    <ul className="ml-4 list-disc">
+                      {cl.changes.map((ch, k) => (
+                        <li key={k}>{ch}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {cl.note && <p className="mt-1 text-xs text-muted">{cl.note}</p>}
+
+              <div className="mt-2 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => useCleaned(src, cl.cleanedUrl!)}
+                  className={cl.safe ? "btn-gold text-sm" : "btn-outline text-sm"}
+                >
+                  Usar la corregida
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissCleanup(src)}
+                  className="text-sm text-muted hover:text-gold-3"
+                >
+                  Quedarme con la original
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runCleanup(src)}
+                  className="text-sm text-muted hover:text-gold-3"
+                >
+                  Reintentar
+                </button>
+              </div>
+            </div>
+          );
+        })}
 
         <p className="mt-2 text-xs text-muted">
           Al subir cada foto, la IA la revisa (reflejos, fondo, enfoque) y te avisa
