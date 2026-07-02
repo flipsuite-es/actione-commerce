@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% -5%, #ffffff 0%, #fbf8f1 45%, #f4eee1 100%);
+  min-height: 100vh;
+}
+
+@layer components {
+  .btn-gold {
+    @apply inline-flex items-center justify-center bg-gold-grad text-[#3a2d10] font-medium uppercase tracking-[0.18em] text-xs px-6 py-3 transition hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center border border-gold/50 text-ink font-medium uppercase tracking-[0.18em] text-xs px-6 py-3 transition hover:border-gold hover:bg-white/50;
+  }
+  .input {
+    @apply w-full border border-gold/40 bg-white/70 px-4 py-3 text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 placeholder:text-[#b6ab92];
+  }
+  .label {
+    @apply block text-[11px] uppercase tracking-[0.2em] text-ink-soft mb-2;
+  }
+  .card {
+    @apply border border-gold/20 bg-white/60 backdrop-blur-sm;
+  }
+  .hairline {
+    @apply h-px w-16 bg-gold-grad;
+  }
+}
