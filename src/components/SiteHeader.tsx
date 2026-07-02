@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
-import { IconBag, IconHeart, IconSearch, IconMenu, IconClose } from "./icons";
+import { IconBag, IconHeart, IconSearch, IconMenu, IconClose, IconUser } from "./icons";
 
 const NAV = [
   { href: "/tienda", label: "Tienda" },
@@ -74,6 +74,9 @@ export default function SiteHeader() {
           <button onClick={() => setSearch(true)} aria-label="Buscar" className="hover:text-gold-3">
             <IconSearch />
           </button>
+          <Link href="/cuenta" aria-label="Mi cuenta" className="hover:text-gold-3">
+            <IconUser />
+          </Link>
           <Link href="/favoritos" aria-label="Favoritos" className="relative hover:text-gold-3">
             <IconHeart />
             {wish.count > 0 && (
@@ -131,6 +134,9 @@ export default function SiteHeader() {
                   {n.label}
                 </Link>
               ))}
+              <Link href="/cuenta" onClick={() => setMenu(false)} className="hover:text-gold-3">
+                Mi cuenta
+              </Link>
               <Link href="/favoritos" onClick={() => setMenu(false)} className="hover:text-gold-3">
                 Favoritos
               </Link>

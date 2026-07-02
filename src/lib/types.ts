@@ -160,6 +160,15 @@ export interface Subscriber {
   created_at: string;
 }
 
+export interface Profile {
+  id: string;
+  email: string | null;
+  full_name: string;
+  phone: string;
+  role: "customer" | "admin";
+  created_at: string;
+}
+
 export type NotificationKind =
   | "ticket_new"
   | "ticket_reply"

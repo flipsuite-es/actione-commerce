@@ -9,6 +9,16 @@
 - [ ] **SIGUIENTE:** cargar catálogo real por `/admin` → primero **categorías**, luego **productos** con fotos.
       (Requiere que el usuario entre en `/admin` con su email/contraseña de Supabase Auth.)
 
+## 🟠 Cuentas de cliente — pendiente de config en Supabase (importante)
+- [ ] **Email de confirmación:** el registro usa el correo de confirmación de Supabase. Sin SMTP propio, esos
+      correos salen del servidor compartido de Supabase (limitado, puede caer en spam). Para producción: configurar
+      **SMTP** en Supabase → Auth → SMTP (Brevo/Resend), o **desactivar "Confirm email"** en Auth → Providers → Email
+      si se quiere alta instantánea (menos seguro).
+- [ ] **Redirect URLs:** en Supabase → Auth → URL Configuration, añadir el **Site URL** y las **Redirect URLs**
+      (p. ej. `https://oucystudios.vercel.app/auth/callback` y luego el dominio real) para que el enlace de
+      confirmación funcione.
+- [ ] Para hacer admin a otra persona: `update public.profiles set role='admin' where email='…';` (por SQL/MCP).
+
 ## 🟠 Config de plataformas (deploy YA resuelto por sincronización)
 - [x] ✅ **Deploy funcionando** (2026-07-02): la rama de producción `claude/ecommerce-low-investment-model-ru62lb`
       (la que Vercel vigila) se sincronizó por *fast-forward* con `main`. Ambas apuntan al mismo commit, así que
@@ -61,4 +71,9 @@
       admin en la nota del pedido.
 - [x] **Generador de firmas de email** (2026-07-02): `/admin/firma`, herramienta para que el equipo cree su firma
       brandeada y elegante (tablas + estilos en línea, web-safe), con vista previa y copiar a Gmail/Outlook. Sin DB.
-      **4 plantillas** a elegir (Clásica, Centrada, Compacta, Con botón CTA); verificadas por render headless.
+      **4 plantillas** a elegir (Clásica, Centrada, Compacta, Con botón CTA); logo opcional en todas.
+- [x] **Cuentas de cliente** (2026-07-02): migración 007 (profiles + rol + is_admin). Login/registro en `/entrar`,
+      área `/cuenta` (perfil editable + historial de pedidos + salir), pedidos enlazados al usuario, icono de cuenta
+      en la cabecera. Panel `/admin` protegido por rol admin. RLS reescrita para separar admin de cliente.
+- [x] **Textos de marca** (2026-07-02): copy reorientado a marca (no producto), sin publicidad engañosa (proveedor
+      Smile Joyas; sin "oro/dorado/baño" salvo color por pieza), ancho completo + 100% responsive móvil.

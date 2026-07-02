@@ -29,14 +29,24 @@ export default async function PanelLayout({
   children: React.ReactNode;
 }) {
   let user: User | null = null;
+  let isAdmin = false;
   try {
     const supabase = createSupabaseServer();
     const { data } = await supabase.auth.getUser();
     user = data.user;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      isAdmin = profile?.role === "admin";
+    }
   } catch {
     user = null;
   }
   if (!user) redirect("/admin/login");
+  if (!isAdmin) redirect("/cuenta");
 
   const { items: notifications, unread } = await getNotifications();
 

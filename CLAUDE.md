@@ -43,6 +43,7 @@ oro / bañada en oro / oro Xk / PVD de oro» NO (falso). Ver
 - ✅ **Reseñas de producto** (migración `005` APLICADA): estrellas + opiniones + formulario en la ficha, `aggregateRating` (SEO), moderación en `/admin/resenas`. **Captura real de correos** (newsletter → tabla `subscribers`, `/admin/suscriptores` + export CSV).
 - ✅ Favicon cuadrado propio (`icon.svg`) + corazón simétrico + PWA (manifest/theme-color).
 - ✅ **Seguimiento de pedido** (migración `006`): `/pedido` (ref+email → estado + nº seguimiento); la confirmación del checkout da la referencia. Testimonios de la home con reseñas reales.
+- ✅ **Cuentas de cliente** (migración `007`): `profiles` con rol (customer/admin); login/registro en `/entrar`, área `/cuenta` (perfil + historial de pedidos). RLS reescrita: el panel `/admin` exige `role='admin'` (los clientes NO heredan el backoffice). Pendiente config Supabase Auth (SMTP + redirect URLs) — ver PENDIENTES.
 - ⏳ Subir productos reales por `/admin`. ⏳ Conectar dominio oucystudios.com. ⏳ Pagos (Fase 2).
 
 ## Conector Supabase (ACTUALIZADO)

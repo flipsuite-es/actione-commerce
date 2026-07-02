@@ -69,6 +69,9 @@ export async function createOrder(payload: {
 
   try {
     const supabase = createSupabaseServer();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const record: any = {
       name,
       email,
@@ -79,6 +82,7 @@ export async function createOrder(payload: {
       shipping,
       total,
       status: "pending",
+      user_id: user?.id ?? null,
     };
     if (coupon) {
       record.discount = discount;
