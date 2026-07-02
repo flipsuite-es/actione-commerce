@@ -69,6 +69,7 @@ export default function SiteFooter({
           title="Contacto"
           links={[
             ["Soporte y contacto", "/soporte"],
+            ["Seguir mi pedido", "/pedido"],
             ...(settings.contact_email ? [["Escríbenos", `mailto:${settings.contact_email}`] as [string, string]] : []),
             ["Nuestra historia", "/#historia"],
             ["Regalar", "/#regalo"],

@@ -1,6 +1,28 @@
 "use server";
 
 import { createSupabaseServer } from "@/lib/supabase/server";
+import type { OrderStatusResult } from "@/lib/types";
+
+/** Consulta el estado de un pedido por referencia (8 primeros del id) + correo. */
+export async function fetchOrderStatus(
+  ref: string,
+  email: string,
+): Promise<{ ok: boolean; order?: OrderStatusResult; error?: string }> {
+  if (!ref?.trim() || !email?.trim())
+    return { ok: false, error: "Indica la referencia y tu correo." };
+  try {
+    const supabase = createSupabaseServer();
+    const { data, error } = await supabase.rpc("order_status", {
+      p_ref: ref.trim(),
+      p_email: email.trim(),
+    });
+    if (error || !data)
+      return { ok: false, error: "No encontramos ningún pedido con esos datos." };
+    return { ok: true, order: data as OrderStatusResult };
+  } catch {
+    return { ok: false, error: "No se pudo consultar el pedido." };
+  }
+}
 
 /** Alta de correo en el newsletter (o muro). Dedup por email en la DB. */
 export async function subscribe(

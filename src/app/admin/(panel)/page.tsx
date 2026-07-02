@@ -1,18 +1,27 @@
 import Link from "next/link";
-import { getAllProducts, getAllOrders, getAllTickets } from "@/lib/admin-data";
+import {
+  getAllProducts,
+  getAllOrders,
+  getAllTickets,
+  getAllReviews,
+  getSubscribers,
+} from "@/lib/admin-data";
 import { euro } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [products, orders, tickets] = await Promise.all([
+  const [products, orders, tickets, reviews, subscribers] = await Promise.all([
     getAllProducts(),
     getAllOrders(),
     getAllTickets().catch(() => []),
+    getAllReviews().catch(() => []),
+    getSubscribers().catch(() => []),
   ]);
   const openTickets = tickets.filter(
     (t) => t.status === "open" || t.status === "pending",
   ).length;
+  const pendingReviews = reviews.filter((r) => !r.approved).length;
 
   const paid = orders.filter((o) => o.status === "paid" || o.status === "shipped");
   const revenue = paid.reduce((n, o) => n + Number(o.total || 0), 0);
@@ -65,11 +74,13 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 text-sm lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-4 text-sm lg:grid-cols-3">
         <MiniStat label="Productos activos" value={active} />
-        <MiniStat label="Borradores" value={products.length - active} />
         <MiniStat label="Sin stock" value={outStock} tone={outStock ? "bad" : undefined} />
         <MiniStat label="Tickets por responder" value={openTickets} tone={openTickets ? "bad" : undefined} />
+        <MiniStat label="Reseñas por aprobar" value={pendingReviews} tone={pendingReviews ? "bad" : undefined} />
+        <MiniStat label="Suscriptores" value={subscribers.length} />
+        <MiniStat label="Total pedidos" value={orders.length} />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">

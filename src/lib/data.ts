@@ -109,6 +109,24 @@ export async function getProductReviews(productId: string): Promise<Review[]> {
   }
 }
 
+/** Reseñas aprobadas recientes (con texto) para la home. */
+export async function getRecentReviews(limit = 3): Promise<Review[]> {
+  try {
+    const supabase = createSupabaseServer();
+    const { data } = await supabase
+      .from("reviews")
+      .select("*")
+      .eq("approved", true)
+      .gte("rating", 4)
+      .neq("body", "")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return (data as Review[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getPageBySlug(slug: string): Promise<Page | null> {
   try {
     const supabase = createSupabaseServer();

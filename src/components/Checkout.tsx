@@ -17,6 +17,7 @@ export default function Checkout({
   const [form, setForm] = useState({ name: "", email: "", phone: "", note: "" });
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
+  const [orderRef, setOrderRef] = useState("");
 
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ code: string; discount: number } | null>(null);
@@ -47,9 +48,25 @@ export default function Checkout({
           Hemos recibido tu pedido. Te escribiremos al correo para confirmarlo y
           enviarte el enlace de pago.
         </p>
-        <Link href="/tienda" className="btn-gold mt-8">
-          Seguir viendo joyas
-        </Link>
+        {orderRef && (
+          <div className="mt-6">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted">Tu referencia</p>
+            <p className="mt-1 inline-block border border-gold/40 bg-white/70 px-4 py-2 font-mono text-lg tracking-widest">
+              {orderRef}
+            </p>
+            <p className="mx-auto mt-3 max-w-sm text-sm text-muted">
+              Guárdala: con ella y tu correo puedes seguir tu pedido cuando quieras.
+            </p>
+          </div>
+        )}
+        <div className="mt-8 flex justify-center gap-3">
+          <Link href="/pedido" className="btn-gold">
+            Seguir mi pedido
+          </Link>
+          <Link href="/tienda" className="btn-outline">
+            Seguir viendo joyas
+          </Link>
+        </div>
       </div>
     );
   }
@@ -71,6 +88,7 @@ export default function Checkout({
     setError("");
     const res = await createOrder({ items, ...form, couponCode: applied?.code });
     if (res.ok) {
+      if (res.id) setOrderRef(res.id.slice(0, 8).toUpperCase());
       clear();
       setStatus("done");
     } else {

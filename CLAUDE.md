@@ -38,6 +38,7 @@ ADN de Action. Marca, tienda y backoffice propios.
 - ✅ **Notificaciones internas** (migración `004_notificaciones.sql` APLICADA): campanita en el panel con contador de no leídos. Triggers de DB generan avisos de nuevo ticket, respuesta de cliente, nuevo pedido y nueva reseña. Sin correos externos; sondeo cada 30 s.
 - ✅ **Reseñas de producto** (migración `005` APLICADA): estrellas + opiniones + formulario en la ficha, `aggregateRating` (SEO), moderación en `/admin/resenas`. **Captura real de correos** (newsletter → tabla `subscribers`, `/admin/suscriptores` + export CSV).
 - ✅ Favicon cuadrado propio (`icon.svg`) + corazón simétrico + PWA (manifest/theme-color).
+- ✅ **Seguimiento de pedido** (migración `006`): `/pedido` (ref+email → estado + nº seguimiento); la confirmación del checkout da la referencia. Testimonios de la home con reseñas reales.
 - ⏳ Subir productos reales por `/admin`. ⏳ Conectar dominio oucystudios.com. ⏳ Pagos (Fase 2).
 
 ## Conector Supabase (ACTUALIZADO)

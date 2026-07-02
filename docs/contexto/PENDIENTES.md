@@ -54,3 +54,6 @@
 - [x] **Captura real de correos** (2026-07-02): newsletter guarda en `subscribers` (dedupe) + `/admin/suscriptores`
       con export CSV.
 - [x] **Favicon cuadrado propio** + corazón de favoritos simétrico + PWA (manifest, theme-color) (2026-07-02).
+- [x] **Seguimiento de pedido** para el cliente (2026-07-02): migración 006 + página `/pedido` (ref+email → línea
+      de estado + nº de seguimiento); la confirmación del checkout muestra la referencia. Testimonios de la home
+      ahora se nutren de reseñas reales aprobadas (con fallback). Dashboard con más indicadores.

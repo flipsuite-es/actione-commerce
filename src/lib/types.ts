@@ -73,6 +73,16 @@ export interface Order {
   created_at: string;
 }
 
+/** Estado de pedido devuelto por la función pública `order_status`. */
+export interface OrderStatusResult {
+  ref: string;
+  status: OrderStatus;
+  tracking: string | null;
+  total: number;
+  created_at: string;
+  items: { name?: string; qty?: number }[];
+}
+
 export type CouponKind = "percent" | "fixed";
 
 export interface Coupon {

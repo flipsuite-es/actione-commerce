@@ -2,15 +2,16 @@ import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
 import Testimonials from "@/components/Testimonials";
-import { getActiveProducts, getSettings } from "@/lib/data";
+import { getActiveProducts, getSettings, getRecentReviews } from "@/lib/data";
 import { IconArrow, IconDrop, IconSparkle, IconGift } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [products, settings] = await Promise.all([
+  const [products, settings, reviews] = await Promise.all([
     getActiveProducts(),
     getSettings(),
+    getRecentReviews(3),
   ]);
   const featured = products.filter((p) => p.featured);
   const grid = (featured.length ? featured : products).slice(0, 8);
@@ -147,7 +148,7 @@ export default async function HomePage() {
           <h2 className="heading mt-3 text-4xl">Clientas Oucy</h2>
         </Reveal>
         <Reveal>
-          <Testimonials />
+          <Testimonials reviews={reviews} />
         </Reveal>
       </section>
     </div>

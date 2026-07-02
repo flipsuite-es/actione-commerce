@@ -137,6 +137,9 @@ export default function SiteHeader() {
               <Link href="/soporte" onClick={() => setMenu(false)} className="hover:text-gold-3">
                 Soporte
               </Link>
+              <Link href="/pedido" onClick={() => setMenu(false)} className="hover:text-gold-3">
+                Seguir mi pedido
+              </Link>
             </nav>
           </div>
         </div>
