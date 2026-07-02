@@ -44,7 +44,9 @@ Storefront (grupo `(store)`, tras el muro):
 - `/favoritos` · `/carrito` (checkout + cupón) · `/pagina/[slug]` (contenido) · `/soporte` (centro de tickets: abrir + consultar/responder con ref+email) · `/acceso` (muro)
 Backoffice (`/admin`, Supabase Auth):
 - `/admin` panel con métricas (incl. tickets por responder) · `/admin/productos` (+ nuevo/[id]) · `/admin/categorias` · `/admin/pedidos` (+ [id]) · `/admin/soporte` (+ [id], hilo + responder + estado/prioridad) · `/admin/cupones` · `/admin/paginas` (+ nueva/[id]) · `/admin/ajustes`
-SEO: `/sitemap.xml`, `/robots.txt`, metadata + OG por producto.
+SEO: `/sitemap.xml`, `/robots.txt`, metadata + OG por producto + **JSON-LD (schema.org/Product)** con precio/stock/marca.
+Legal/UX: **banner de cookies RGPD** (`CookieConsent`, guarda aceptación en localStorage, enlaza a /pagina/privacidad).
+Backoffice extra: **exportar pedidos a CSV** (`/admin/pedidos/export`, con BOM para Excel) · **buscador+filtros** (activos/borradores/stock bajo) en la lista de productos.
 
 ## Modelo de datos (resumen)
 - `products` (name, slug, description, price, compare_at_price, stock, sku, material, category_id, images[], status active/draft, featured, sort)

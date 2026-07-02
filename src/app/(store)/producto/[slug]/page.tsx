@@ -47,8 +47,32 @@ export default async function ProductPage({
   const onSale =
     product.compare_at_price != null && product.compare_at_price > product.price;
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description:
+      product.description || "Joya de acero inoxidable dorado que no se oxida.",
+    image: product.images?.length ? product.images : undefined,
+    sku: product.sku || undefined,
+    brand: { "@type": "Brand", name: "Oucy Studios" },
+    offers: {
+      "@type": "Offer",
+      price: product.price,
+      priceCurrency: "EUR",
+      availability:
+        product.stock > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+    },
+  };
+
   return (
     <div className="container-lux py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* breadcrumb */}
       <nav className="mb-8 text-xs uppercase tracking-[0.16em] text-muted">
         <Link href="/" className="hover:text-gold-3">Inicio</Link>

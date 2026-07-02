@@ -9,10 +9,20 @@ export default async function PedidosPage() {
   const orders = await getAllOrders();
   return (
     <div>
-      <h1 className="font-serif text-3xl">Pedidos</h1>
-      <p className="mb-6 mt-1 text-muted">
-        {orders.length} pedido{orders.length === 1 ? "" : "s"}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-3xl">Pedidos</h1>
+          <p className="mt-1 text-muted">
+            {orders.length} pedido{orders.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        {orders.length > 0 && (
+          <a href="/admin/pedidos/export" className="btn-outline !px-5 !py-2.5">
+            Exportar CSV
+          </a>
+        )}
+      </div>
+      <div className="mb-6" />
 
       {orders.length === 0 ? (
         <div className="card p-10 text-center text-muted">Todavía no hay pedidos.</div>

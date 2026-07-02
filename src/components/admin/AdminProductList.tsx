@@ -1,16 +1,71 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { Product } from "@/lib/types";
 import { euro } from "@/lib/format";
 import { adjustStock, deleteProduct, duplicateProduct, toggleProduct } from "@/app/admin/actions";
 
+type Filter = "all" | "active" | "draft" | "low";
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "Todos" },
+  { key: "active", label: "Activos" },
+  { key: "draft", label: "Borradores" },
+  { key: "low", label: "Stock bajo" },
+];
+
 export default function AdminProductList({ products }: { products: Product[] }) {
   const [pending, start] = useTransition();
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+
+  const shown = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return products.filter((p) => {
+      if (filter === "active" && p.status !== "active") return false;
+      if (filter === "draft" && p.status !== "draft") return false;
+      if (filter === "low" && p.stock > 3) return false;
+      if (
+        term &&
+        !p.name.toLowerCase().includes(term) &&
+        !(p.sku || "").toLowerCase().includes(term)
+      )
+        return false;
+      return true;
+    });
+  }, [products, q, filter]);
 
   return (
-    <div className="card overflow-hidden">
+    <div>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar por nombre o SKU…"
+          className="input max-w-xs !py-2.5"
+        />
+        <div className="flex flex-wrap gap-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`rounded px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${
+                filter === f.key
+                  ? "bg-gold/15 text-ink"
+                  : "text-muted hover:bg-gold/10 hover:text-ink"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto text-xs text-muted">
+          {shown.length} de {products.length}
+        </span>
+      </div>
+
+      <div className="card overflow-hidden">
       <table className="w-full text-sm">
         <thead className="border-b border-gold/20 text-left text-xs uppercase tracking-[0.14em] text-muted">
           <tr>
@@ -22,7 +77,7 @@ export default function AdminProductList({ products }: { products: Product[] }) 
           </tr>
         </thead>
         <tbody className="divide-y divide-gold/10">
-          {products.map((p) => (
+          {shown.map((p) => (
             <tr key={p.id} className={pending ? "opacity-60" : ""}>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -119,15 +174,18 @@ export default function AdminProductList({ products }: { products: Product[] }) 
               </td>
             </tr>
           ))}
-          {products.length === 0 && (
+          {shown.length === 0 && (
             <tr>
               <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                Aún no hay productos. Crea el primero.
+                {products.length === 0
+                  ? "Aún no hay productos. Crea el primero."
+                  : "Ningún producto coincide con la búsqueda."}
               </td>
             </tr>
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

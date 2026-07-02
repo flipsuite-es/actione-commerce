@@ -7,6 +7,7 @@ import AnnouncementBar from "@/components/AnnouncementBar";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CartDrawer from "@/components/CartDrawer";
+import CookieConsent from "@/components/CookieConsent";
 import { getSettings, getPages } from "@/lib/data";
 import { ACCESS_COOKIE, ACCESS_VALUE } from "@/lib/access";
 
@@ -36,6 +37,7 @@ export default async function StoreLayout({
             freeShipThreshold={settings.free_ship_threshold}
             shippingFlat={settings.shipping_flat}
           />
+          <CookieConsent />
         </CartProvider>
       </WishlistProvider>
     </ToastProvider>

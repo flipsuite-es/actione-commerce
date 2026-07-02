@@ -44,3 +44,5 @@
       con ref+email) + panel `/admin/soporte` (lista con filtros, hilo, responder, estado/prioridad) + stat en dashboard.
 - [x] **Notificaciones internas** (2026-07-02): migración 004 + campanita en el panel (nuevo ticket, respuesta de
       cliente, nuevo pedido) con contador de no leídos, sondeo cada 30 s y marcar leídas. Todo interno, sin emails.
+- [x] **Pulido general** (2026-07-02): JSON-LD de producto (SEO), banner de cookies RGPD, exportar pedidos a CSV
+      y buscador/filtros en la lista de productos del panel.
