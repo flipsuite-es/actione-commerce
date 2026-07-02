@@ -22,8 +22,10 @@ export function imageEditConfigured(): boolean {
 const FAL_MODEL = "fal-ai/flux-pro/kontext";
 
 const REFLECTION_PROMPT =
-  "Remove the reflection of the person, the photographer, hands, phone or camera from the polished metal jewelry surface. Make the metal reflect a clean, neutral, softly-lit studio instead (subtle white and light-grey gradients). " +
-  "CRITICAL — keep the jewelry piece EXACTLY the same real object: identical shape, size and proportions; the same metallic tone and finish (do NOT turn a gold-tone finish into brighter real gold, do NOT change a silver tone); do NOT add gemstones; do NOT remove or hide real scratches, dents or imperfections on the metal; keep the same surface it rests on. Only replace the mirror-reflection content. Keep it photorealistic, as if it were the same photograph taken in a clean studio.";
+  "Retouch this product photo. Replace ONLY the mirror reflection of the person, photographer, hands, phone or camera on the metal jewelry with soft, neutral, out-of-focus studio reflections (gentle white highlights and warm soft gradients). " +
+  "Make a MINIMAL, SURGICAL edit — the result must look identical to the original except that the human reflection is gone. " +
+  "CRITICAL, keep the metal EXACTLY as it is: a clean, bright, warm, highly polished mirror gold-tone (or silver-tone) surface. Do NOT dull, darken, desaturate, matte, tarnish or muddy the metal; do NOT introduce green, grey, brown or dirty tones; preserve the same bright highlights and the warm lighting. " +
+  "Preserve EXACTLY the piece's shape, size and proportions, the warm sunlight and shadows, and the white pillow and background. Do NOT add gemstones and do NOT hide real scratches or dents. Photorealistic, same photograph, only the reflection content changes.";
 
 /** Devuelve la URL (temporal, de fal) de la imagen sin reflejo. */
 export async function removeReflection(imageUrl: string): Promise<AiResult<string>> {
@@ -45,8 +47,10 @@ export async function removeReflection(imageUrl: string): Promise<AiResult<strin
       body: JSON.stringify({
         prompt: REFLECTION_PROMPT,
         image_url: imageUrl,
-        guidance_scale: 3.5,
-        num_inference_steps: 30,
+        // Guidance bajo = se mantiene más pegado a la foto original (menos
+        // "invención" del acabado, que era lo que apagaba el dorado).
+        guidance_scale: 2.5,
+        num_inference_steps: 32,
         safety_tolerance: "2",
         output_format: "jpeg",
       }),
