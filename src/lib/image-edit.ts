@@ -22,10 +22,10 @@ export function imageEditConfigured(): boolean {
 const FAL_MODEL = "fal-ai/flux-pro/kontext";
 
 const REFLECTION_PROMPT =
-  "Retouch this product photo. Replace ONLY the mirror reflection of the person, photographer, hands, phone or camera on the metal jewelry with soft, neutral, out-of-focus studio reflections (gentle white highlights and warm soft gradients). " +
-  "Make a MINIMAL, SURGICAL edit — the result must look identical to the original except that the human reflection is gone. " +
-  "CRITICAL, keep the metal EXACTLY as it is: a clean, bright, warm, highly polished mirror gold-tone (or silver-tone) surface. Do NOT dull, darken, desaturate, matte, tarnish or muddy the metal; do NOT introduce green, grey, brown or dirty tones; preserve the same bright highlights and the warm lighting. " +
-  "Preserve EXACTLY the piece's shape, size and proportions, the warm sunlight and shadows, and the white pillow and background. Do NOT add gemstones and do NOT hide real scratches or dents. Photorealistic, same photograph, only the reflection content changes.";
+  "Retouch this jewelry product photo so it looks as if it was shot inside a clean white light tent, with large plain white cards all around the front. The polished metal should therefore reflect ONLY smooth, clean, pure WHITE and soft warm highlights — as if everything in front of the piece were a plain white surface. " +
+  "This means: wherever the metal currently shows a reflection of a person, photographer, hands, phone, camera or the room, replace that reflected content with clean white / soft warm-white studio reflection. Keep natural bright specular highlights. " +
+  "CRITICAL — keep the metal itself EXACTLY the same: a bright, warm, highly polished mirror gold-tone (or silver-tone) finish. Do NOT dull, darken, desaturate, matte, tarnish or muddy it; do NOT add green, grey, brown or dirty tones. " +
+  "Preserve EXACTLY the piece's shape, size and proportions, the warm sunlight and shadows, and the white pillow and background. Do NOT add gemstones and do NOT hide real scratches or dents. Photorealistic, minimal surgical edit — only the reflected content on the metal becomes clean white.";
 
 /** Devuelve la URL (temporal, de fal) de la imagen sin reflejo. */
 export async function removeReflection(imageUrl: string): Promise<AiResult<string>> {

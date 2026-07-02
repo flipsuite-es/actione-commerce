@@ -76,8 +76,11 @@ backoffice completos y funcionando.
      píxeles). Nota de producto: para fotos limpias se recomienda **usar la foto del proveedor** o la técnica de la
      cartulina blanca con agujero para el objetivo.
   4. **Borrado de reflejos con IA + auditoría** (`cleanupPhoto` + `src/lib/image-edit.ts`): edita la foto con un servicio
-     externo (**fal.ai / FLUX Kontext**, clave **`FAL_KEY`**) con instrucción conservadora (solo quitar el reflejo;
-     mantener forma/tamaño/color/acabado; sin gemas ni ocultar defectos). Guarda la editada en nuestro Storage y luego
+     externo (**fal.ai / FLUX Kontext**, clave **`FAL_KEY`**). El prompt NO dice "quita el reflejo" (eso hacía que el
+     modelo reinventara y apagara el metal), sino **«simula que se disparó dentro de una carpa/cartulina blanca»**: el
+     metal refleja solo blanco limpio + brillos cálidos, manteniendo el dorado/plateado brillante, forma, tamaño y
+     acabado; sin gemas ni ocultar defectos. `guidance_scale` 2.5 (pegado a la foto original). OJO: la joya muy espejada
+     (gota pulida) es el peor caso; a menudo la foto original/del proveedor es mejor. Guarda la editada en nuestro Storage y luego
      **Claude audita** comparando original vs editada: si detecta que se ha alterado el producto, la marca **no segura**.
      La original NUNCA se borra; en la ficha se muestran las dos lado a lado con el veredicto y **el admin aprueba**
      («Usar la corregida» / «Quedarme con la original»). Anti-publicidad-engañosa por diseño (triple red: instrucción
