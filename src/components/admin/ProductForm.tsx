@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { saveProduct, uploadImage } from "@/app/admin/actions";
+import { saveProduct, uploadImage, suggestProduct } from "@/app/admin/actions";
 import type { Category, Product } from "@/lib/types";
 
 export default function ProductForm({
@@ -15,16 +15,53 @@ export default function ProductForm({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
+  // Campos controlados para poder autorrellenarlos con las sugerencias de IA.
+  const [name, setName] = useState(product?.name ?? "");
+  const [description, setDescription] = useState(product?.description ?? "");
+  const [material, setMaterial] = useState(product?.material ?? "Acero inoxidable");
+  const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
+
+  const [suggesting, setSuggesting] = useState(false);
+  const [aiMsg, setAiMsg] = useState("");
+
+  async function runSuggest(url: string) {
+    setSuggesting(true);
+    setAiMsg("");
+    try {
+      const cats = categories.map((c) => ({ id: c.id, name: c.name }));
+      const r = await suggestProduct(url, cats);
+      if (!r.ok) {
+        setAiMsg(r.error);
+        return;
+      }
+      if (r.name) setName(r.name);
+      if (r.description) setDescription(r.description);
+      if (r.material) setMaterial(r.material);
+      if (r.category) {
+        const c = categories.find((x) => x.name === r.category);
+        if (c) setCategoryId(c.id);
+      }
+      setAiMsg("Sugerencias aplicadas. Revísalas y ajusta lo que quieras antes de guardar.");
+    } catch (err: any) {
+      setAiMsg(err?.message || "No se pudieron generar sugerencias.");
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     setUploading(true);
     setError("");
+    const wasEmpty = images.length === 0;
+    let firstUrl = "";
     try {
       for (const file of files) {
         const fd = new FormData();
         fd.append("file", file);
         const url = await uploadImage(fd);
+        if (!firstUrl) firstUrl = url;
         setImages((prev) => [...prev, url]);
       }
     } catch (err: any) {
@@ -32,6 +69,10 @@ export default function ProductForm({
     } finally {
       setUploading(false);
       e.target.value = "";
+    }
+    // Autorrelleno: si es la primera foto y aún no hay nombre, sugiere con IA.
+    if (wasEmpty && firstUrl && !name.trim()) {
+      runSuggest(firstUrl);
     }
   }
 
@@ -42,7 +83,19 @@ export default function ProductForm({
 
       {/* Imágenes */}
       <section className="card p-6">
-        <h2 className="font-serif text-xl">Imágenes</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-serif text-xl">Imágenes</h2>
+          {images.length > 0 && (
+            <button
+              type="button"
+              onClick={() => runSuggest(images[0])}
+              disabled={suggesting}
+              className="btn-outline text-sm disabled:opacity-50"
+            >
+              {suggesting ? "Pensando…" : "✨ Sugerir ficha con IA"}
+            </button>
+          )}
+        </div>
         <div className="mt-4 flex flex-wrap gap-3">
           {images.map((src, i) => (
             <div key={i} className="relative h-24 w-24 border border-gold/20">
@@ -71,6 +124,11 @@ export default function ProductForm({
           </label>
         </div>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {aiMsg && <p className="mt-2 text-sm text-muted">{aiMsg}</p>}
+        <p className="mt-2 text-xs text-muted">
+          Al subir la primera foto se generan sugerencias de nombre, descripción,
+          material y categoría. Son solo una propuesta: revísalas antes de guardar.
+        </p>
       </section>
 
       {/* Datos */}
@@ -78,7 +136,13 @@ export default function ProductForm({
         <h2 className="font-serif text-xl">Datos del producto</h2>
         <div>
           <label className="label">Nombre</label>
-          <input name="name" className="input" defaultValue={product?.name} required />
+          <input
+            name="name"
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
         </div>
         <div>
           <label className="label">Descripción</label>
@@ -86,7 +150,8 @@ export default function ProductForm({
             name="description"
             rows={4}
             className="input"
-            defaultValue={product?.description ?? ""}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -129,7 +194,8 @@ export default function ProductForm({
             <input
               name="material"
               className="input"
-              defaultValue={product?.material ?? "Acero inoxidable"}
+              value={material}
+              onChange={(e) => setMaterial(e.target.value)}
             />
           </div>
           <div>
@@ -137,7 +203,8 @@ export default function ProductForm({
             <select
               name="category_id"
               className="input"
-              defaultValue={product?.category_id ?? ""}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
             >
               <option value="">— Sin categoría —</option>
               {categories.map((c) => (

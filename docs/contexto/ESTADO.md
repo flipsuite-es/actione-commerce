@@ -37,6 +37,13 @@ backoffice completos y funcionando.
   recorta **cuadrado 1400×1400** y optimiza a **WebP** (q82). Si `sharp` fallara, sube el original. `sharp` es
   dependencia real (package.json) y va en `experimental.serverComponentsExternalPackages` para Vercel. NO hace
   recorte de fondo (eso requeriría IA/servicio de pago); el fondo lo pone la foto original.
+- **Sugerencias de ficha con IA (visión)** (`suggestProduct` en `admin/actions.ts` + `ProductForm.tsx`): al subir la
+  **primera** foto de un producto (si el nombre está vacío) se llama a Claude visión (`claude-opus-4-8`) para proponer
+  **nombre, descripción, material y categoría**; los campos quedan controlados y editables (el admin revisa y guarda).
+  También hay botón manual «✨ Sugerir ficha con IA». La llamada es `fetch` directo a la API de Anthropic (sin SDK nuevo)
+  con un *system prompt* que impone las reglas de marca: material siempre "Acero inoxidable", color plata/dorado como
+  acabado (NUNCA oro/baño/chapado/plata de ley), sin "hipoalergénico". **Requiere `ANTHROPIC_API_KEY` en Vercel**; si
+  falta, devuelve un aviso y la ficha se rellena a mano igual que antes (no bloquea).
 
 ## Vercel
 - Team: `flipsuite-es' projects` (id `team_Z3rTsOhJJI24bIJ67MmXAkiH`).

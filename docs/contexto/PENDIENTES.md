@@ -14,6 +14,11 @@
 - [x] Repunte a `main` — el usuario indica que ya está en main (2026-07-02).
 - [x] Correo a Smile Joyas — enviado por el usuario 2026-07-02.
 
+## 🔵 Config externa nueva (recomendada, no bloqueante)
+- [ ] **Vercel → `ANTHROPIC_API_KEY`**: activa las **sugerencias de ficha con IA** al subir la foto del producto
+      (autorrelleno de nombre, descripción, material y categoría en `/admin/productos/nuevo`). Sin la clave, el resto
+      del formulario funciona igual y se rellena a mano. Se pone en Vercel → Settings → Environment Variables.
+
 ## 🔴 Bloqueante / siguiente paso
 - [x] ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02) vía Supabase MCP (conector ya autorizado
       para la org Oucy). Verificado: settings +6 cols, orders +3 cols, tablas coupons y pages (4 páginas).

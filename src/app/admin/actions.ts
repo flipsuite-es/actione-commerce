@@ -151,6 +151,115 @@ export async function uploadImage(formData: FormData): Promise<string> {
   return data.publicUrl;
 }
 
+/** Sugerencias de ficha a partir de la foto (visión IA).
+ *  Devuelve nombre, descripción, material y categoría sugeridos para que el
+ *  admin los revise antes de guardar. Atado a las reglas de marca: producto de
+ *  acero inoxidable de proveedor; color plata/dorado es acabado, nunca «oro».
+ *  Requiere `ANTHROPIC_API_KEY` en el servidor (Vercel). Si falta, devuelve un
+ *  aviso claro y la ficha se rellena a mano como siempre. */
+export async function suggestProduct(
+  imageUrl: string,
+  categories: { id: string; name: string }[]
+): Promise<
+  | { ok: true; name: string; description: string; material: string; category: string }
+  | { ok: false; error: string }
+> {
+  await requireAdmin();
+  if (!imageUrl) return { ok: false, error: "Sube una foto primero." };
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      error:
+        "Falta ANTHROPIC_API_KEY en el servidor. Añádela en Vercel (Settings → Environment Variables) para activar las sugerencias con IA.",
+    };
+  }
+
+  const nombresCategorias = categories.map((c) => c.name);
+  const system = `Eres el asistente de catálogo de Oucy Studios, una marca de joyería de acero inoxidable (elegante, atemporal). Redactas fichas de producto a partir de una foto.
+
+REGLAS INNEGOCIABLES (publicidad no engañosa — las piezas son de proveedor):
+- El material es SIEMPRE "Acero inoxidable". Nunca inventes plata de ley, oro, plata esterlina, latón, etc.
+- El acabado puede describirse como "color plata" o "color dorado" (es solo el color del acero). PROHIBIDO decir "oro", "bañado en oro", "baño de oro", "chapado", "oro de Xk", "PVD de oro", "plata de ley": sería falso.
+- PROHIBIDO afirmar "hipoalergénico", "apto para piel sensible" o "sin níquel": no está certificado.
+- No inventes medidas, peso, quilates ni materiales de piedras si no son evidentes. Si hay una piedra/circonita visible, puedes decir "con circonita" solo si es claramente eso; si dudas, no lo menciones.
+- Tono de MARCA, elegante y sobrio. Nada de spam de características ("no se oxida", "resistente al agua"...). Describe la pieza y para qué momento es, con gusto.
+- Español de España. Nombre corto y bonito (2–4 palabras). Descripción de 1–2 frases.
+
+Devuelve tu respuesta EXCLUSIVAMENTE como un objeto JSON válido (sin markdown, sin texto extra) con esta forma exacta:
+{"name": "...", "description": "...", "material": "Acero inoxidable", "category": "..."}
+El campo "category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): ${JSON.stringify(nombresCategorias)}.`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-8",
+        max_tokens: 1024,
+        system,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image", source: { type: "url", url: imageUrl } },
+              {
+                type: "text",
+                text: "Analiza esta joya y devuelve el JSON con la ficha sugerida siguiendo las reglas.",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      return {
+        ok: false,
+        error: `La IA no respondió (${res.status}). ${detail.slice(0, 180)}`,
+      };
+    }
+
+    const data = (await res.json()) as {
+      content?: { type: string; text?: string }[];
+    };
+    const text =
+      data.content?.find((b) => b.type === "text")?.text?.trim() || "";
+    const jsonStr = text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+    const start = jsonStr.indexOf("{");
+    const end = jsonStr.lastIndexOf("}");
+    if (start === -1 || end === -1) {
+      return { ok: false, error: "La IA no devolvió un formato válido." };
+    }
+    const parsed = JSON.parse(jsonStr.slice(start, end + 1)) as {
+      name?: string;
+      description?: string;
+      material?: string;
+      category?: string;
+    };
+
+    const catMatch = categories.find(
+      (c) => c.name.toLowerCase() === String(parsed.category || "").toLowerCase()
+    );
+
+    return {
+      ok: true,
+      name: String(parsed.name || "").trim(),
+      description: String(parsed.description || "").trim(),
+      material: "Acero inoxidable",
+      category: catMatch?.name ?? "",
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Error al llamar a la IA." };
+  }
+}
+
 /* ---------------- Categorías ---------------- */
 
 export async function saveCategory(formData: FormData) {
