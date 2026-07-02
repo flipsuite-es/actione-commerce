@@ -33,8 +33,9 @@ ADN de Action. Marca, tienda y backoffice propios.
 ## Estado de un vistazo
 - ✅ App completa (storefront premium + backoffice) desplegada en Vercel.
 - ✅ Supabase base (schema.sql) aplicado. Backoffice básico operativo.
-- ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02, sesión de revisión de contexto) vía Supabase MCP. Desbloqueado: contenido editable en ajustes, cupones, páginas (4 iniciales sembradas), y descuento/cupón/seguimiento en pedidos.
-- ⏳ Subir productos reales por `/admin`. ⏳ Conectar dominio oucystudios.com. ⏳ Pagos (Fase 2).
+- ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02) vía Supabase MCP. Desbloqueado: contenido editable en ajustes, cupones, páginas (4 iniciales sembradas), y descuento/cupón/seguimiento en pedidos.
+- ✅ **Sistema de tickets de soporte** (migración `003_soporte.sql` APLICADA): storefront `/soporte` (abrir + consultar/responder con ref+email) y backoffice `/admin/soporte` (lista, hilo, responder, estado/prioridad) + stat en dashboard.
+- ⏳ Subir productos reales por `/admin`. ⏳ Conectar dominio oucystudios.com. ⏳ Pagos (Fase 2). ⏳ Notificar tickets por email (Fase 2).
 
 ## Conector Supabase (ACTUALIZADO)
 El conector **Supabase MCP ya está autorizado para la org "Oucy Studios"** (proyecto `jedyummyygniixuyzbck`), así que Claude **sí puede gestionar la base de datos** (migraciones y SQL) desde esta sesión. La red directa a supabase.co sigue bloqueada en el sandbox, pero las operaciones de DB se hacen por las herramientas MCP de Supabase. (Antes solo se veía la org `flipsuite`; ya está resuelto.)

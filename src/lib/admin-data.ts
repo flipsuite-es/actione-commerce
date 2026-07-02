@@ -1,5 +1,13 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
-import type { Category, Coupon, Order, Page, Product } from "@/lib/types";
+import type {
+  Category,
+  Coupon,
+  Order,
+  Page,
+  Product,
+  Ticket,
+  TicketMessage,
+} from "@/lib/types";
 
 /** Lecturas del panel (usuario autenticado → RLS permite ver todo). */
 
@@ -65,4 +73,33 @@ export async function getPageByIdAdmin(id: string): Promise<Page | null> {
   const supabase = createSupabaseServer();
   const { data } = await supabase.from("pages").select("*").eq("id", id).single();
   return (data as Page) ?? null;
+}
+
+/* ---------------- Soporte / Tickets ---------------- */
+
+export async function getAllTickets(): Promise<Ticket[]> {
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from("tickets")
+    .select("*")
+    .order("last_message_at", { ascending: false });
+  return (data as Ticket[]) ?? [];
+}
+
+export async function getTicketWithMessages(
+  id: string,
+): Promise<{ ticket: Ticket; messages: TicketMessage[] } | null> {
+  const supabase = createSupabaseServer();
+  const { data: ticket } = await supabase
+    .from("tickets")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (!ticket) return null;
+  const { data: messages } = await supabase
+    .from("ticket_messages")
+    .select("*")
+    .eq("ticket_id", id)
+    .order("created_at", { ascending: true });
+  return { ticket: ticket as Ticket, messages: (messages as TicketMessage[]) ?? [] };
 }

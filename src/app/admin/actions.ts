@@ -262,3 +262,44 @@ export async function saveSettings(formData: FormData) {
   revalidatePath("/admin/ajustes");
   refreshStore();
 }
+
+/* ---------------- Soporte / Tickets ---------------- */
+
+export async function replyTicket(formData: FormData) {
+  const supabase = await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const body = String(formData.get("body") || "").trim();
+  if (!id || !body) return;
+  const { error } = await supabase
+    .from("ticket_messages")
+    .insert({ ticket_id: id, author: "admin", body });
+  if (error) throw new Error(error.message);
+  await supabase
+    .from("tickets")
+    .update({ status: "answered", last_message_at: new Date().toISOString() })
+    .eq("id", id);
+  revalidatePath("/admin/soporte");
+  revalidatePath(`/admin/soporte/${id}`);
+}
+
+export async function updateTicketMeta(formData: FormData) {
+  const supabase = await requireAdmin();
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  await supabase
+    .from("tickets")
+    .update({
+      status: String(formData.get("status") || "open"),
+      priority: String(formData.get("priority") || "normal"),
+    })
+    .eq("id", id);
+  revalidatePath("/admin/soporte");
+  revalidatePath(`/admin/soporte/${id}`);
+}
+
+export async function deleteTicket(id: string) {
+  const supabase = await requireAdmin();
+  await supabase.from("tickets").delete().eq("id", id);
+  revalidatePath("/admin/soporte");
+  redirect("/admin/soporte");
+}

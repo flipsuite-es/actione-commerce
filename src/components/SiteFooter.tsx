@@ -68,6 +68,7 @@ export default function SiteFooter({
         <FooterCol
           title="Contacto"
           links={[
+            ["Soporte y contacto", "/soporte"],
             ...(settings.contact_email ? [["Escríbenos", `mailto:${settings.contact_email}`] as [string, string]] : []),
             ["Nuestra historia", "/#historia"],
             ["Regalar", "/#regalo"],

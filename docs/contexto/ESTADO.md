@@ -24,6 +24,7 @@ backoffice completos y funcionando.
 - Claves: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (pública) configuradas en Vercel. **No** se usa service_role (el backoffice escribe con la sesión del admin vía RLS).
 - Esquema aplicado: `supabase/schema.sql` (categories, products, orders, settings + RLS + bucket `product-images`).
 - **Migración 002 APLICADA** (2026-07-02): `supabase/migrations/002_backoffice.sql`. Añadidas 6 columnas de contenido a `settings` (instagram_url, tiktok_url, whatsapp_url, contact_email, hero_subtitle, story_text), 3 columnas a `orders` (tracking, discount, coupon_code), y las tablas `coupons` y `pages` (con RLS + 4 páginas iniciales: envios, devoluciones, cuidado, privacidad). Ya funcionan cupones, páginas editables, contenido/redes editables y seguimiento de pedidos.
+- **Migración 003 APLICADA** (2026-07-02): `supabase/migrations/003_soporte.sql` — **sistema de tickets de soporte**. Tablas `tickets` (ref único OUCY-XXXXXX, name, email, subject, order_ref, status open/pending/answered/closed, priority) y `ticket_messages` (author customer/admin, body). El público NO lee/escribe directo: opera vía 3 funciones **SECURITY DEFINER** (`open_ticket`, `ticket_thread`, `reply_ticket`) que validan ref+email y tienen `search_path` fijado; el admin autenticado gestiona todo por RLS. Advisors: los WARN `anon/authenticated_security_definer_function_executable` sobre esas 3 funciones son **intencionales** (el cliente anónimo debe poder llamarlas).
   - Verificación advisors (seguridad): solo WARN esperados — las políticas `*_admin_all ... using(true)` para el admin autenticado son **por diseño** (ver DECISIONES: el admin gestiona todo vía su sesión RLS); `function_search_path_mutable` en `touch_updated_at` y `auth_leaked_password_protection` son WARN menores no bloqueantes.
 - Usuario admin: creado por el usuario en Authentication (email + contraseña propios). Entra en `/admin`.
 - Bucket de imágenes: `product-images` (público).
@@ -39,9 +40,9 @@ backoffice completos y funcionando.
 ## Estructura de la app (rutas)
 Storefront (grupo `(store)`, tras el muro):
 - `/` portada editorial · `/tienda` (buscador+filtros+orden) · `/producto/[slug]` (galería, cantidad, favorito, relacionados)
-- `/favoritos` · `/carrito` (checkout + cupón) · `/pagina/[slug]` (contenido) · `/acceso` (muro)
+- `/favoritos` · `/carrito` (checkout + cupón) · `/pagina/[slug]` (contenido) · `/soporte` (centro de tickets: abrir + consultar/responder con ref+email) · `/acceso` (muro)
 Backoffice (`/admin`, Supabase Auth):
-- `/admin` panel con métricas · `/admin/productos` (+ nuevo/[id]) · `/admin/categorias` · `/admin/pedidos` (+ [id]) · `/admin/cupones` · `/admin/paginas` (+ nueva/[id]) · `/admin/ajustes`
+- `/admin` panel con métricas (incl. tickets por responder) · `/admin/productos` (+ nuevo/[id]) · `/admin/categorias` · `/admin/pedidos` (+ [id]) · `/admin/soporte` (+ [id], hilo + responder + estado/prioridad) · `/admin/cupones` · `/admin/paginas` (+ nueva/[id]) · `/admin/ajustes`
 SEO: `/sitemap.xml`, `/robots.txt`, metadata + OG por producto.
 
 ## Modelo de datos (resumen)
@@ -51,7 +52,8 @@ SEO: `/sitemap.xml`, `/robots.txt`, metadata + OG por producto.
 - `settings` (fila única: shop_name, tagline, announcement, prelaunch_enabled, access_code, free_ship_threshold, shipping_flat + contenido* : instagram_url, tiktok_url, whatsapp_url, contact_email, hero_subtitle, story_text)
 - `coupons`* (code, kind percent/fixed, value, min_subtotal, active)
 - `pages`* (slug, title, body, published, sort)
-RLS: público solo lee lo publicado/activo; el admin autenticado gestiona todo.
+- `tickets`** (ref, name, email, subject, order_ref, status, priority, last_message_at) + `ticket_messages`** (ticket_id, author, body) — (**) migración 003
+RLS: público solo lee lo publicado/activo; el admin autenticado gestiona todo. Tickets: el público solo opera vía funciones SECURITY DEFINER (open_ticket/ticket_thread/reply_ticket).
 
 ## Cómo desplegar cambios
 Editar → `npm run build` (verificar verde) → commit → push a la rama → Vercel redespliega solo.

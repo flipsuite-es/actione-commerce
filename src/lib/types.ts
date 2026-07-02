@@ -95,3 +95,40 @@ export interface Page {
   created_at: string;
   updated_at: string;
 }
+
+export type TicketStatus = "open" | "pending" | "answered" | "closed";
+export type TicketPriority = "low" | "normal" | "high";
+
+export interface Ticket {
+  id: string;
+  ref: string;
+  name: string;
+  email: string;
+  subject: string;
+  order_ref: string | null;
+  status: TicketStatus;
+  priority: TicketPriority;
+  created_at: string;
+  updated_at: string;
+  last_message_at: string;
+}
+
+export type TicketAuthor = "customer" | "admin";
+
+export interface TicketMessage {
+  id: string;
+  ticket_id: string;
+  author: TicketAuthor;
+  body: string;
+  created_at: string;
+}
+
+/** Hilo público devuelto por la función SECURITY DEFINER `ticket_thread`. */
+export interface TicketThread {
+  ref: string;
+  subject: string;
+  status: TicketStatus;
+  order_ref: string | null;
+  created_at: string;
+  messages: { author: TicketAuthor; body: string; created_at: string }[];
+}

@@ -24,6 +24,9 @@
 - [ ] Pedir al proveedor el **informe del acero** (níquel/316L) para respaldar el claim "hipoalergénico".
 
 ## 🟢 Mejoras / Fase 2
+- [ ] **Notificar tickets por email** (avisar al admin de tickets nuevos y al cliente de respuestas). Ahora
+      el flujo funciona en la web pero no envía correos automáticos (requiere Resend/Brevo o similar).
+- [ ] Anti-spam en el formulario de soporte (rate-limit o captcha) si llega abuso.
 - [ ] **Pagos** (Stripe/Shopify Payments + PayPal + Bizum) cuando haya tráfico/historial (ver `docs/01`, `docs/03`).
 - [ ] Captura de email real (Formspree/Mailchimp/Brevo) para newsletter y muro.
 - [ ] Reseñas gestionables desde el panel (ahora los testimonios son fijos).
@@ -37,3 +40,5 @@
 - [x] Deploy en Vercel (auto-deploy por push). App movida a la raíz del repo.
 - [x] Backoffice ampliado: dashboard con métricas, pedidos con estados, categorías, cupones, páginas, ajustes de contenido.
 - [x] Sistema de contexto/recuperación (`CLAUDE.md` + `docs/contexto/`).
+- [x] **Sistema de tickets de soporte** (2026-07-02): migración 003 + página `/soporte` (abrir y consultar/responder
+      con ref+email) + panel `/admin/soporte` (lista con filtros, hilo, responder, estado/prioridad) + stat en dashboard.

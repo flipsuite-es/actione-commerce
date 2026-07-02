@@ -1,11 +1,18 @@
 import Link from "next/link";
-import { getAllProducts, getAllOrders } from "@/lib/admin-data";
+import { getAllProducts, getAllOrders, getAllTickets } from "@/lib/admin-data";
 import { euro } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [products, orders] = await Promise.all([getAllProducts(), getAllOrders()]);
+  const [products, orders, tickets] = await Promise.all([
+    getAllProducts(),
+    getAllOrders(),
+    getAllTickets().catch(() => []),
+  ]);
+  const openTickets = tickets.filter(
+    (t) => t.status === "open" || t.status === "pending",
+  ).length;
 
   const paid = orders.filter((o) => o.status === "paid" || o.status === "shipped");
   const revenue = paid.reduce((n, o) => n + Number(o.total || 0), 0);
@@ -62,7 +69,7 @@ export default async function DashboardPage() {
         <MiniStat label="Productos activos" value={active} />
         <MiniStat label="Borradores" value={products.length - active} />
         <MiniStat label="Sin stock" value={outStock} tone={outStock ? "bad" : undefined} />
-        <MiniStat label="Total pedidos" value={orders.length} />
+        <MiniStat label="Tickets por responder" value={openTickets} tone={openTickets ? "bad" : undefined} />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -101,8 +108,8 @@ export default async function DashboardPage() {
         </Panel>
       </div>
 
-      {/* Últimos pedidos */}
-      <div className="mt-6">
+      {/* Últimos pedidos + soporte */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel title="Últimos pedidos" action={{ href: "/admin/pedidos", label: "Ver todos" }}>
           {orders.length === 0 ? (
             <Empty>Todavía no hay pedidos.</Empty>
@@ -121,6 +128,31 @@ export default async function DashboardPage() {
                       </span>
                     </span>
                     <span className="text-sm text-ink-soft">{euro(o.total)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Soporte" action={{ href: "/admin/soporte", label: "Ver todos" }}>
+          {tickets.length === 0 ? (
+            <Empty>No hay tickets de soporte.</Empty>
+          ) : (
+            <ul className="divide-y divide-gold/10">
+              {tickets.slice(0, 6).map((t) => (
+                <li key={t.id}>
+                  <Link
+                    href={`/admin/soporte/${t.id}`}
+                    className="flex items-center justify-between gap-3 px-5 py-3 transition hover:bg-gold/5"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate">{t.subject}</span>
+                      <span className="text-xs text-muted">{t.name}</span>
+                    </span>
+                    <span className="shrink-0 text-xs uppercase tracking-wider text-muted">
+                      {t.status}
+                    </span>
                   </Link>
                 </li>
               ))}
