@@ -61,3 +61,4 @@
       admin en la nota del pedido.
 - [x] **Generador de firmas de email** (2026-07-02): `/admin/firma`, herramienta para que el equipo cree su firma
       brandeada y elegante (tablas + estilos en línea, web-safe), con vista previa y copiar a Gmail/Outlook. Sin DB.
+      **4 plantillas** a elegir (Clásica, Centrada, Compacta, Con botón CTA); verificadas por render headless.
