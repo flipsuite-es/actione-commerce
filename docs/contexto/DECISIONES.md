@@ -16,6 +16,12 @@
   concreto de cada pieza va en su nombre o en su campo "material" en `/admin`.
 - **Gama:** **asequible** ahora (acero, ~10–18 €), escalar a **demi-fine** con caja. NO ir a fina/cara
   (capital, contraste, chargebacks). Ver `docs/17`.
+- **Pricing (2026-07-02):** el **coste real de compra es 1–4 €/pieza** (proveedor). PVP realista de marca **nueva** de
+  acero de moda: **~10–20 €** (punto dulce ~12,95–15,95). NO precios de marca consolidada (los 29,95 € que sugería la
+  IA eran demasiado altos: corregido). El PVP se fija desde el **coste × multiplicador** (calculador en la ficha,
+  guardando `products.cost` interno), no a ojo. **Nunca** poner "precio antes" (tachado) inventado: solo en **rebajas
+  reales** (Directiva Omnibus: el precio anterior debe haber sido real en los últimos 30 días). Se puede subir cuando
+  haya marca/reseñas/tracción; bajar después sienta peor.
 - **Posicionamiento:** *quiet luxury* asequible — "joyas elegantes y atemporales, para el día a día y para
   regalar". El wedge real es estética + historia + comunidad + calidad honesta. Ver `docs/16`.
 - **Público:** mujer 25–45 que se autorregala y regala.

@@ -28,6 +28,23 @@ export default function ProductForm({
   const [compareAt, setCompareAt] = useState(
     product?.compare_at_price != null ? String(product.compare_at_price) : ""
   );
+  const [cost, setCost] = useState(
+    product?.cost != null ? String(product.cost) : ""
+  );
+
+  // Cálculo de PVP a partir del coste × multiplicador, redondeado a .95.
+  const costNum = parseFloat(cost.replace(",", "."));
+  const priceNum = parseFloat(price.replace(",", "."));
+  function applyMultiplier(mult: number) {
+    if (!Number.isFinite(costNum) || costNum <= 0) return;
+    const raw = costNum * mult;
+    const rounded = Math.max(0, Math.ceil(raw) - 0.05); // …,95 más cercano hacia arriba
+    setPrice(rounded.toFixed(2));
+  }
+  const margin =
+    Number.isFinite(costNum) && costNum > 0 && Number.isFinite(priceNum)
+      ? { profit: priceNum - costNum, mult: priceNum / costNum }
+      : null;
 
   const [suggesting, setSuggesting] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
@@ -137,7 +154,8 @@ export default function ProductForm({
         {aiMsg && <p className="mt-2 text-sm text-muted">{aiMsg}</p>}
         <p className="mt-2 text-xs text-muted">
           Al subir la primera foto se generan sugerencias de nombre, descripción,
-          material y categoría. Son solo una propuesta: revísalas antes de guardar.
+          material, categoría y un precio orientativo. El precio es solo un punto de
+          partida: fíjalo con tu coste (abajo) y el multiplicador.
         </p>
       </section>
 
@@ -187,7 +205,60 @@ export default function ProductForm({
               value={compareAt}
               onChange={(e) => setCompareAt(e.target.value)}
             />
+            <p className="mt-1 text-xs text-muted">
+              Solo para rebajas reales (precio tachado). Déjalo vacío si no hay oferta.
+            </p>
           </div>
+
+          {/* Coste + calculador de PVP (interno) */}
+          <div className="rounded border border-gold/20 bg-gold/[0.04] p-4 sm:col-span-2">
+            <div className="grid gap-4 sm:grid-cols-[200px_1fr] sm:items-end">
+              <div>
+                <label className="label">Coste (€, interno)</label>
+                <input
+                  name="cost"
+                  type="number"
+                  step="0.01"
+                  className="input"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  placeholder="lo que te cuesta"
+                />
+              </div>
+              <div>
+                <span className="label">Calcular PVP desde el coste</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {[3, 4, 5, 6, 8].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => applyMultiplier(m)}
+                      disabled={!Number.isFinite(costNum) || costNum <= 0}
+                      className="btn-outline px-3 py-1.5 text-sm disabled:opacity-40"
+                      title={`Precio = coste × ${m} (redondeado a ,95)`}
+                    >
+                      ×{m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted">
+              El coste es solo interno (no se ve en la tienda). Los botones fijan el
+              precio a coste × N, redondeado a ,95. Ajústalo luego a mano si quieres.
+            </p>
+            {margin && (
+              <p className="mt-1 text-xs">
+                Margen:{" "}
+                <span
+                  className={margin.profit > 0 ? "text-emerald-700" : "text-red-600"}
+                >
+                  {margin.profit.toFixed(2)} € por pieza ({margin.mult.toFixed(1)}×)
+                </span>
+              </p>
+            )}
+          </div>
+
           <div>
             <label className="label">Stock</label>
             <input

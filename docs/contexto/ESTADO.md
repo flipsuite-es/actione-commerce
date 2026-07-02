@@ -45,6 +45,12 @@ backoffice completos y funcionando.
   marca: material siempre "Acero inoxidable", color plata/dorado como acabado (NUNCA oro/baño/chapado/plata de ley), sin
   "hipoalergénico". **Requiere `ANTHROPIC_API_KEY` en Vercel**; si falta, devuelve un aviso y la ficha se rellena a mano
   igual que antes (no bloquea).
+- **Coste + PVP realista** (migración **012**, columna `products.cost`): la ficha guarda el **coste** de compra
+  (interno, no se muestra en tienda). Botones **×3 ×4 ×5 ×6 ×8** calculan el PVP = coste × N redondeado a ,95, y se
+  muestra el **margen** (€ y multiplicador) en vivo. La sugerencia de precio de la IA se bajó a un rango **realista**
+  para acero de moda de marca nueva (9,95–19,95 €, apuntando a 12,95–15,95) y **nunca** rellena "precio antes"
+  (`compare_at_price` siempre null; solo se pone a mano en rebajas reales, por la Directiva Omnibus). Coste típico de
+  compra del usuario: **1–4 €**.
 - **SKU automático (control propio)** (migración **010** + `saveProduct`): el SKU lo asigna el sistema, no se teclea.
   Al crear un producto sin SKU se genera correlativo **`OUCY-0001`, `OUCY-0002`…** (max+1 de los ya existentes con ese
   prefijo). En la ficha el campo SKU es de solo lectura («Se asignará automáticamente»). Al editar se conserva el SKU.

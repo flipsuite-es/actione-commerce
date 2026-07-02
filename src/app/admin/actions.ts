@@ -70,6 +70,7 @@ export async function saveProduct(formData: FormData) {
     description: String(formData.get("description") || ""),
     price: num(formData.get("price")),
     compare_at_price: formData.get("compare_at_price") ? num(formData.get("compare_at_price")) : null,
+    cost: formData.get("cost") ? num(formData.get("cost")) : null,
     stock: Math.round(num(formData.get("stock"))),
     sku,
     supplier_id: String(formData.get("supplier_id") || "") || null,
@@ -207,10 +208,10 @@ Eres el asistente de catálogo de Oucy Studios. A partir de una foto de una joya
 - No inventes medidas, peso, quilates ni materiales de piedras si no son evidentes. Si hay una circonita claramente visible puedes mencionarla; si dudas, no.
 - Nombre corto y bonito (2–4 palabras). Descripción de 1–2 frases.
 
-PRECIO (orientativo, EUROS): propón un precio de venta coherente con bijouterie de acero elegante pero accesible (rango habitual 15–45 €; piezas más elaboradas hasta ~60 €). Redondea a precio bonito acabado en 5 o 9 (p. ej. 24.95). Opcionalmente un "precio antes" (compare_at) algo mayor para mostrar oferta; si no, null.
+PRECIO (orientativo, EUROS): son bijouterie de acero inoxidable de coste bajo y la marca es NUEVA (sin recorrido todavía), así que el precio debe ser REALISTA y competitivo, NO de marca consolidada. Rango habitual 9.95–19.95 €; apunta a la parte baja-media (12.95–15.95) salvo que la pieza sea visualmente muy especial (hasta ~22.95). Redondea acabando en .95. NO inventes "precio antes": "compare_at_price" siempre null (solo se usa en rebajas reales).
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra) con esta forma exacta:
-{"name":"...","description":"...","material":"Acero inoxidable","category":"...","price":24.95,"compare_at_price":null}
+{"name":"...","description":"...","material":"Acero inoxidable","category":"...","price":14.95,"compare_at_price":null}
 "category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): ${JSON.stringify(nombresCategorias)}.`;
 
   const r = await askJSON<{
@@ -253,7 +254,9 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra) con
     material: "Acero inoxidable",
     category: catMatch?.name ?? "",
     price: toPrice(parsed.price),
-    compare_at_price: toPrice(parsed.compare_at_price),
+    // Nunca autorrellenamos "precio antes": solo se pone en una rebaja real
+    // (evita anclas de descuento falsas → publicidad engañosa).
+    compare_at_price: null,
   };
 }
 
