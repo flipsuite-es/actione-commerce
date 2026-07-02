@@ -450,7 +450,7 @@ export async function cleanupPhoto(
     };
   }
 
-  const MAX_ATTEMPTS = 3; // por tanda; el admin puede pedir más tandas
+  const MAX_ATTEMPTS = 2; // por tanda (el modelo MAX es lento); el cliente encadena tandas
   let best: CleanupBest | null = prevBest ?? null;
   let done = 0;
 

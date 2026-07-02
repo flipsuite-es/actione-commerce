@@ -80,11 +80,12 @@ backoffice completos y funcionando.
      modelo reinventara y apagara el metal), sino **«simula que se disparó dentro de una carpa/cartulina blanca»**: el
      metal refleja solo blanco limpio + brillos cálidos, manteniendo el dorado/plateado brillante, forma, tamaño y
      acabado; sin gemas ni ocultar defectos. `guidance_scale` 2.5 (pegado a la foto original). **Reintenta solo** (hasta
-     3 intentos por tanda con semilla distinta) y la auditoría **puntúa la fidelidad (0–100)**: se queda con el
-     **mejor intento**, no con el primero que pasa. Botón **«Seguir probando»** que hace más tandas de forma acumulativa
-     (sin colgar la función; el cliente pasa el mejor previo como `prevBest`). Usa **FLUX Kontext MAX** (`FAL_IMAGE_MODEL`
-     para forzar otro). Si nada llega a fiel, avisa y recomienda la original. OJO: la joya muy espejada (gota pulida) es
-     el peor caso. `maxDuration=60`.
+     2 por tanda con semilla distinta) y la auditoría **puntúa la fidelidad (0–100)**: se queda con el **mejor intento**.
+     **Bucle automático en el cliente:** al pulsar «Quitar reflejo» reintenta SOLO (encadenando tandas, pasando el mejor
+     previo como `prevBest`) **hasta encontrar una publicable/segura o hasta `AUTO_CAP=10` intentos**; muestra el
+     progreso (mejor X/100) y hay botón **«Parar»**. Si llega al tope sin lograrlo, avisa y se puede «Seguir probando».
+     Usa **FLUX Kontext MAX** (`FAL_IMAGE_MODEL` para forzar otro). OJO: la joya muy espejada (gota pulida) es el peor
+     caso y puede no llegar nunca a segura → usar la original. `maxDuration=60` (cada tanda es una petición corta).
   6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): procesado **determinista** con sharp (ajustes GLOBALES
      de luz/contraste/saturación/nitidez, como el "editar" del móvil). NO usa IA generativa: no inventa píxeles ni cambia
      forma/color/acabado → **nunca es publicidad engañosa**. Gratis, instantáneo, sin claves. Botón «Mejorar calidad» por

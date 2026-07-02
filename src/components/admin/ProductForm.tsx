@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   saveProduct,
   uploadImage,
@@ -49,9 +49,20 @@ export default function ProductForm({
   // Borrado de reflejo con IA (compara y audita), por URL original.
   const [cleanup, setCleanup] = useState<Record<string, PhotoCleanup>>({});
 
+  // Bandera de parada del bucle automático, por foto.
+  const stopRef = useRef<Record<string, boolean>>({});
+  const AUTO_CAP = 10; // tope de intentos automáticos (protección coste/tiempo)
+
+  function stopCleanup(url: string) {
+    stopRef.current[url] = true;
+  }
+
+  /** Bucle automático: reintenta solo hasta encontrar una publicable (segura)
+   *  o hasta AUTO_CAP intentos. Va guardando el mejor y actualizando la vista. */
   async function runCleanup(url: string) {
+    stopRef.current[url] = false;
     const current = cleanup[url];
-    const prevBest =
+    let best =
       current?.cleanedUrl != null
         ? {
             cleanedUrl: current.cleanedUrl,
@@ -61,30 +72,39 @@ export default function ProductForm({
             note: current.note ?? "",
           }
         : null;
-    const prevAttempts = current?.attempts ?? 0;
+    let total = current?.attempts ?? 0;
     setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: true, error: undefined } }));
     try {
-      const r = await cleanupPhoto(url, prevBest);
-      if (!r.ok) {
-        setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: false, error: r.error } }));
-        return;
-      }
-      setCleanup((prev) => ({
-        ...prev,
-        [url]: {
+      while (!stopRef.current[url] && total < AUTO_CAP) {
+        const r = await cleanupPhoto(url, best);
+        if (!r.ok) {
+          setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: false, error: r.error } }));
+          return;
+        }
+        total += r.attempts;
+        best = {
           cleanedUrl: r.cleanedUrl,
           safe: r.safe,
           score: r.score,
           changes: r.changes,
           note: r.note,
-          attempts: prevAttempts + r.attempts,
-        },
-      }));
+        };
+        const keepGoing = !r.safe && !stopRef.current[url] && total < AUTO_CAP;
+        setCleanup((prev) => ({
+          ...prev,
+          [url]: { ...best!, attempts: total, loading: keepGoing },
+        }));
+        if (r.safe) break;
+      }
     } catch (err: any) {
       setCleanup((prev) => ({
         ...prev,
         [url]: { ...prev[url], loading: false, error: err?.message || "No se pudo quitar el reflejo." },
       }));
+    } finally {
+      setCleanup((prev) =>
+        prev[url] ? { ...prev, [url]: { ...prev[url], loading: false } } : prev,
+      );
     }
   }
 
@@ -479,7 +499,8 @@ export default function ProductForm({
               ),
             )}
             <span className="w-full text-[11px] text-muted/80">
-              Reintenta sola hasta que la auditoría la dé por fiel (puede tardar unos segundos).
+              Reintenta sola hasta encontrar una publicable (o hasta {AUTO_CAP} intentos).
+              Puede tardar; verás el progreso y podrás pararlo.
             </span>
           </div>
         )}
@@ -546,6 +567,13 @@ export default function ProductForm({
               )}
               {cl.note && <p className="mt-1 text-xs text-muted">{cl.note}</p>}
 
+              {cl.loading && (
+                <p className="mt-2 text-xs text-ink-soft">
+                  Probando automáticamente hasta lograr una publicable… (mejor hasta
+                  ahora: {cl.score ?? 0}/100)
+                </p>
+              )}
+
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -554,14 +582,25 @@ export default function ProductForm({
                 >
                   Usar esta
                 </button>
-                <button
-                  type="button"
-                  onClick={() => runCleanup(src)}
-                  disabled={cl.loading}
-                  className="btn-outline text-sm disabled:opacity-50"
-                >
-                  {cl.loading ? "Probando…" : "✨ Seguir probando"}
-                </button>
+                {cl.loading ? (
+                  <button
+                    type="button"
+                    onClick={() => stopCleanup(src)}
+                    className="btn-outline text-sm"
+                  >
+                    Parar
+                  </button>
+                ) : (
+                  !cl.safe && (
+                    <button
+                      type="button"
+                      onClick={() => runCleanup(src)}
+                      className="btn-outline text-sm"
+                    >
+                      ✨ Seguir probando
+                    </button>
+                  )
+                )}
                 <button
                   type="button"
                   onClick={() => dismissCleanup(src)}
