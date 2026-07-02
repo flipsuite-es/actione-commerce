@@ -8,76 +8,91 @@ export default async function AjustesPage() {
   return (
     <div className="max-w-2xl">
       <h1 className="font-serif text-3xl">Ajustes</h1>
-      <p className="mb-6 mt-1 text-muted">Configuración de la tienda.</p>
+      <p className="mb-6 mt-1 text-muted">Todo lo de tu tienda, editable desde aquí.</p>
 
       <form action={saveSettings} className="space-y-8">
-        <section className="card space-y-4 p-6">
-          <h2 className="font-serif text-xl">Muro de pre-lanzamiento</h2>
+        <Section title="Muro de pre-lanzamiento">
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              name="prelaunch_enabled"
-              defaultChecked={s.prelaunch_enabled}
-            />
+            <input type="checkbox" name="prelaunch_enabled" defaultChecked={s.prelaunch_enabled} />
             Activar muro (la tienda pide un código para entrar)
           </label>
-          <div>
-            <label className="label">Código de acceso</label>
-            <input name="access_code" className="input" defaultValue={s.access_code} />
-          </div>
-        </section>
+          <Field label="Código de acceso" name="access_code" defaultValue={s.access_code} />
+        </Section>
 
-        <section className="card space-y-4 p-6">
-          <h2 className="font-serif text-xl">Tienda</h2>
-          <div>
-            <label className="label">Nombre</label>
-            <input name="shop_name" className="input" defaultValue={s.shop_name} />
-          </div>
-          <div>
-            <label className="label">Tagline</label>
-            <input name="tagline" className="input" defaultValue={s.tagline} />
-          </div>
-          <div>
-            <label className="label">Anuncio superior (opcional)</label>
-            <input
-              name="announcement"
-              className="input"
-              defaultValue={s.announcement ?? ""}
-              placeholder="Ej: Envío gratis desde 24,90 €"
-            />
-          </div>
-        </section>
+        <Section title="Marca y textos">
+          <Field label="Nombre" name="shop_name" defaultValue={s.shop_name} />
+          <Field label="Tagline" name="tagline" defaultValue={s.tagline} />
+          <Area label="Subtítulo de portada" name="hero_subtitle" defaultValue={s.hero_subtitle} />
+          <Area label="Nuestra historia" name="story_text" defaultValue={s.story_text} />
+          <Field label="Anuncio superior (marquee)" name="announcement" defaultValue={s.announcement ?? ""} placeholder="Ej: Envío gratis desde 24,90 €" />
+        </Section>
 
-        <section className="card space-y-4 p-6">
-          <h2 className="font-serif text-xl">Envíos</h2>
+        <Section title="Redes y contacto">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="label">Envío gratis desde (€)</label>
-              <input
-                name="free_ship_threshold"
-                type="number"
-                step="0.01"
-                className="input"
-                defaultValue={s.free_ship_threshold}
-              />
-            </div>
-            <div>
-              <label className="label">Coste de envío (€)</label>
-              <input
-                name="shipping_flat"
-                type="number"
-                step="0.01"
-                className="input"
-                defaultValue={s.shipping_flat}
-              />
-            </div>
+            <Field label="Instagram (URL)" name="instagram_url" defaultValue={s.instagram_url} />
+            <Field label="TikTok (URL)" name="tiktok_url" defaultValue={s.tiktok_url} />
+            <Field label="WhatsApp (URL)" name="whatsapp_url" defaultValue={s.whatsapp_url} />
+            <Field label="Email de contacto" name="contact_email" defaultValue={s.contact_email} />
           </div>
-        </section>
+        </Section>
 
-        <button type="submit" className="btn-gold">
-          Guardar ajustes
-        </button>
+        <Section title="Envíos">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Envío gratis desde (€)" name="free_ship_threshold" type="number" defaultValue={String(s.free_ship_threshold)} />
+            <Field label="Coste de envío (€)" name="shipping_flat" type="number" defaultValue={String(s.shipping_flat)} />
+          </div>
+        </Section>
+
+        <button className="btn-gold">Guardar ajustes</button>
+        <p className="text-xs text-muted">
+          Los campos de contenido y redes requieren haber ejecutado la migración
+          <b> 002_backoffice.sql</b> en Supabase.
+        </p>
       </form>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="card space-y-4 p-6">
+      <h2 className="font-serif text-xl">{title}</h2>
+      {children}
+    </section>
+  );
+}
+function Field({
+  label,
+  name,
+  defaultValue,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <input
+        name={name}
+        type={type}
+        step={type === "number" ? "0.01" : undefined}
+        className="input"
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+function Area({ label, name, defaultValue }: { label: string; name: string; defaultValue?: string }) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <textarea name={name} rows={3} className="input" defaultValue={defaultValue} />
     </div>
   );
 }

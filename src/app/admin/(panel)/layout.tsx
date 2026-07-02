@@ -10,7 +10,10 @@ export const metadata = { title: "Panel · Oucy Studios" };
 const nav = [
   { href: "/admin", label: "Panel" },
   { href: "/admin/productos", label: "Productos" },
+  { href: "/admin/categorias", label: "Categorías" },
   { href: "/admin/pedidos", label: "Pedidos" },
+  { href: "/admin/cupones", label: "Cupones" },
+  { href: "/admin/paginas", label: "Páginas" },
   { href: "/admin/ajustes", label: "Ajustes" },
 ];
 
@@ -25,21 +28,18 @@ export default async function PanelLayout({
     const { data } = await supabase.auth.getUser();
     user = data.user;
   } catch {
-    // Supabase no configurado o sesión inválida → tratar como no autenticado.
     user = null;
   }
   if (!user) redirect("/admin/login");
 
   return (
-    <div className="min-h-screen bg-ivory md:grid md:grid-cols-[240px_1fr]">
-      <aside className="border-b border-gold/20 bg-white/60 md:border-b-0 md:border-r">
+    <div className="min-h-screen bg-ivory md:grid md:grid-cols-[248px_1fr]">
+      <aside className="border-b border-gold/20 bg-white/60 md:sticky md:top-0 md:h-screen md:border-b-0 md:border-r">
         <div className="px-6 py-6">
-          <p className="font-serif text-2xl">Oucy</p>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted">
-            Backoffice
-          </p>
+          <p className="font-serif text-3xl">Oucy</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Backoffice</p>
         </div>
-        <nav className="flex gap-1 px-3 pb-4 md:flex-col">
+        <nav className="flex flex-wrap gap-1 px-3 pb-4 md:flex-col md:flex-nowrap">
           {nav.map((n) => (
             <Link
               key={n.href}
@@ -50,8 +50,11 @@ export default async function PanelLayout({
             </Link>
           ))}
         </nav>
-        <div className="hidden px-6 py-4 md:block">
-          <p className="mb-2 truncate text-xs text-muted">{user.email}</p>
+        <div className="mt-2 border-t border-gold/10 px-6 py-4 md:mt-auto">
+          <Link href="/" target="_blank" className="text-xs uppercase tracking-[0.14em] text-gold-3 hover:text-gold">
+            Ver tienda ↗
+          </Link>
+          <p className="mb-2 mt-3 truncate text-xs text-muted">{user.email}</p>
           <form action={signOut}>
             <button className="text-xs uppercase tracking-[0.16em] text-muted hover:text-gold-3">
               Cerrar sesión

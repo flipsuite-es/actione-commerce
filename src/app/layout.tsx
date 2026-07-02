@@ -1,15 +1,24 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://oucystudios.com";
+
 export const metadata: Metadata = {
-  title: "Oucy Studios · Joyas que duran, no se oxidan",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Oucy Studios · Joyas que duran, no se oxidan",
+    template: "%s · Oucy Studios",
+  },
   description:
     "Joyas doradas de acero, elegantes y atemporales que no se oxidan. Para llevar cada día y para regalar.",
   openGraph: {
     title: "Oucy Studios",
     description: "Joyas doradas que no se oxidan. Elegantes y atemporales.",
     type: "website",
+    locale: "es_ES",
+    images: ["/logo.png"],
   },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({

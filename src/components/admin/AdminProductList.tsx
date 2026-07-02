@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTransition } from "react";
 import type { Product } from "@/lib/types";
 import { euro } from "@/lib/format";
-import { adjustStock, deleteProduct } from "@/app/admin/actions";
+import { adjustStock, deleteProduct, duplicateProduct, toggleProduct } from "@/app/admin/actions";
 
 export default function AdminProductList({ products }: { products: Product[] }) {
   const [pending, start] = useTransition();
@@ -75,15 +75,24 @@ export default function AdminProductList({ products }: { products: Product[] }) 
                 </div>
               </td>
               <td className="px-4 py-3">
-                <span
-                  className={`rounded px-2 py-0.5 text-[11px] uppercase tracking-wider ${
+                <button
+                  onClick={() => start(() => toggleProduct(p.id, "status"))}
+                  title="Cambiar visibilidad"
+                  className={`rounded px-2 py-0.5 text-[11px] uppercase tracking-wider transition ${
                     p.status === "active"
-                      ? "bg-gold/15 text-gold-3"
-                      : "bg-ink/10 text-ink-soft"
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                      : "bg-ink/10 text-ink-soft hover:bg-ink/20"
                   }`}
                 >
                   {p.status === "active" ? "Activo" : "Borrador"}
-                </span>
+                </button>
+                <button
+                  onClick={() => start(() => toggleProduct(p.id, "featured"))}
+                  title="Destacar en portada"
+                  className={`ml-2 text-sm transition ${p.featured ? "text-gold" : "text-ink/25 hover:text-gold-3"}`}
+                >
+                  ★
+                </button>
               </td>
               <td className="px-4 py-3 text-right">
                 <Link
@@ -92,6 +101,12 @@ export default function AdminProductList({ products }: { products: Product[] }) 
                 >
                   Editar
                 </Link>
+                <button
+                  onClick={() => start(() => duplicateProduct(p.id))}
+                  className="ml-4 text-xs uppercase tracking-wider text-ink-soft hover:text-gold-3"
+                >
+                  Duplicar
+                </button>
                 <button
                   onClick={() => {
                     if (confirm(`¿Borrar "${p.name}"?`))

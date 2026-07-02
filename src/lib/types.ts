@@ -36,6 +36,13 @@ export interface Settings {
   access_code: string;
   free_ship_threshold: number;
   shipping_flat: number;
+  // Contenido editable (migración 002)
+  instagram_url: string;
+  tiktok_url: string;
+  whatsapp_url: string;
+  contact_email: string;
+  hero_subtitle: string;
+  story_text: string;
 }
 
 export interface CartItem {
@@ -45,4 +52,46 @@ export interface CartItem {
   price: number;
   image: string | null;
   qty: number;
+}
+
+export type OrderStatus = "pending" | "paid" | "shipped" | "cancelled";
+
+export interface Order {
+  id: string;
+  email: string | null;
+  name: string | null;
+  phone: string | null;
+  items: { id: string; name: string; price: number; qty: number }[];
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  coupon_code: string | null;
+  total: number;
+  status: OrderStatus;
+  tracking: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export type CouponKind = "percent" | "fixed";
+
+export interface Coupon {
+  id: string;
+  code: string;
+  kind: CouponKind;
+  value: number;
+  min_subtotal: number;
+  active: boolean;
+  created_at: string;
+}
+
+export interface Page {
+  id: string;
+  slug: string;
+  title: string;
+  body: string;
+  published: boolean;
+  sort: number;
+  created_at: string;
+  updated_at: string;
 }

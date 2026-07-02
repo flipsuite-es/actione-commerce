@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { getAllOrders } from "@/lib/admin-data";
 import { euro } from "@/lib/format";
+import { OrderBadge } from "@/components/admin/OrderBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +15,7 @@ export default async function PedidosPage() {
       </p>
 
       {orders.length === 0 ? (
-        <div className="card p-10 text-center text-muted">
-          Todavía no hay pedidos.
-        </div>
+        <div className="card p-10 text-center text-muted">Todavía no hay pedidos.</div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
@@ -28,22 +28,20 @@ export default async function PedidosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gold/10">
-              {orders.map((o: any) => (
-                <tr key={o.id}>
+              {orders.map((o) => (
+                <tr key={o.id} className="transition hover:bg-gold/5">
                   <td className="px-4 py-3">
-                    <div>{o.name}</div>
+                    <Link href={`/admin/pedidos/${o.id}`} className="font-medium hover:text-gold-3">
+                      {o.name || "—"}
+                    </Link>
                     <div className="text-xs text-muted">{o.email}</div>
                   </td>
                   <td className="px-4 py-3 text-ink-soft">
-                    {(o.items as any[])
-                      .map((i) => `${i.name} ×${i.qty}`)
-                      .join(", ")}
+                    {(o.items || []).reduce((n, i) => n + i.qty, 0)} uds
                   </td>
                   <td className="px-4 py-3">{euro(o.total)}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded bg-gold/15 px-2 py-0.5 text-[11px] uppercase tracking-wider text-gold-3">
-                      {o.status}
-                    </span>
+                    <OrderBadge status={o.status} />
                   </td>
                 </tr>
               ))}

@@ -1,18 +1,31 @@
 import Link from "next/link";
 import Newsletter from "./Newsletter";
 import { IconInstagram, IconTiktok, IconTruck, IconDrop, IconSparkle } from "./icons";
+import type { Page, Settings } from "@/lib/types";
 
-export default function SiteFooter() {
+export default function SiteFooter({
+  settings,
+  pages = [],
+}: {
+  settings: Settings;
+  pages?: Page[];
+}) {
+  const help = pages.length
+    ? pages.map((p) => [p.title, `/pagina/${p.slug}`] as [string, string])
+    : ([
+        ["Envíos y entregas", "/#historia"],
+        ["Devoluciones", "/#historia"],
+        ["Cuidado de tus joyas", "/#historia"],
+      ] as [string, string][]);
+
   return (
     <footer className="mt-28 border-t border-gold/20 bg-white/40">
-      {/* Newsletter band */}
       <div className="border-b border-gold/15">
         <div className="container-lux py-16">
           <Newsletter />
         </div>
       </div>
 
-      {/* Trust row */}
       <div className="container-lux grid gap-6 border-b border-gold/10 py-10 sm:grid-cols-3">
         {[
           { icon: IconDrop, t: "No se oxida", s: "Acero inoxidable, resiste el agua" },
@@ -31,30 +44,40 @@ export default function SiteFooter() {
         ))}
       </div>
 
-      {/* Columns */}
       <div className="container-lux grid gap-10 py-14 sm:grid-cols-4">
         <div className="sm:col-span-1">
-          <p className="font-serif text-2xl">Oucy Studios</p>
+          <p className="font-serif text-2xl">{settings.shop_name}</p>
           <p className="mt-3 max-w-xs text-sm text-muted">
             Joyas doradas de acero, elegantes y atemporales. Hecho en España.
           </p>
           <div className="mt-4 flex gap-3 text-gold-3">
-            <a href="https://instagram.com/oucystudios" target="_blank" rel="noopener" aria-label="Instagram" className="transition hover:text-gold">
-              <IconInstagram />
-            </a>
-            <a href="https://tiktok.com/@oucystudios" target="_blank" rel="noopener" aria-label="TikTok" className="transition hover:text-gold">
-              <IconTiktok />
-            </a>
+            {settings.instagram_url && (
+              <a href={settings.instagram_url} target="_blank" rel="noopener" aria-label="Instagram" className="transition hover:text-gold">
+                <IconInstagram />
+              </a>
+            )}
+            {settings.tiktok_url && (
+              <a href={settings.tiktok_url} target="_blank" rel="noopener" aria-label="TikTok" className="transition hover:text-gold">
+                <IconTiktok />
+              </a>
+            )}
           </div>
         </div>
         <FooterCol title="Tienda" links={[["Todas las joyas", "/tienda"], ["Anillos", "/tienda?cat=anillos"], ["Pendientes", "/tienda?cat=pendientes"], ["Favoritos", "/favoritos"]]} />
-        <FooterCol title="Ayuda" links={[["Envíos y entregas", "/#historia"], ["Devoluciones", "/#historia"], ["Cuidado de tus joyas", "/#historia"], ["Contacto", "/#historia"]]} />
-        <FooterCol title="Oucy" links={[["Nuestra historia", "/#historia"], ["Regalar", "/#regalo"], ["Instagram", "https://instagram.com/oucystudios"], ["TikTok", "https://tiktok.com/@oucystudios"]]} />
+        <FooterCol title="Ayuda" links={help} />
+        <FooterCol
+          title="Contacto"
+          links={[
+            ...(settings.contact_email ? [["Escríbenos", `mailto:${settings.contact_email}`] as [string, string]] : []),
+            ["Nuestra historia", "/#historia"],
+            ["Regalar", "/#regalo"],
+          ]}
+        />
       </div>
 
       <div className="border-t border-gold/10 py-6">
         <div className="container-lux flex flex-col items-center justify-between gap-2 text-[11px] uppercase tracking-[0.14em] text-muted sm:flex-row">
-          <span>© {new Date().getFullYear()} Oucy Studios · Hecho en España</span>
+          <span>© {new Date().getFullYear()} {settings.shop_name} · Hecho en España</span>
           <span>Pago seguro · Visa · Mastercard · PayPal · Bizum</span>
         </div>
       </div>
@@ -68,10 +91,12 @@ function FooterCol({ title, links }: { title: string; links: [string, string][] 
       <p className="label">{title}</p>
       <ul className="space-y-2 text-ink-soft">
         {links.map(([label, href]) => (
-          <li key={label}>
-            <Link href={href} className="transition hover:text-gold-3">
-              {label}
-            </Link>
+          <li key={label + href}>
+            {href.startsWith("http") || href.startsWith("mailto") ? (
+              <a href={href} className="transition hover:text-gold-3">{label}</a>
+            ) : (
+              <Link href={href} className="transition hover:text-gold-3">{label}</Link>
+            )}
           </li>
         ))}
       </ul>

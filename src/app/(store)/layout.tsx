@@ -7,7 +7,7 @@ import AnnouncementBar from "@/components/AnnouncementBar";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CartDrawer from "@/components/CartDrawer";
-import { getSettings } from "@/lib/data";
+import { getSettings, getPages } from "@/lib/data";
 import { ACCESS_COOKIE, ACCESS_VALUE } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export default async function StoreLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await getSettings();
+  const [settings, pages] = await Promise.all([getSettings(), getPages()]);
 
   if (settings.prelaunch_enabled) {
     const granted = cookies().get(ACCESS_COOKIE)?.value === ACCESS_VALUE;
@@ -31,7 +31,7 @@ export default async function StoreLayout({
           <AnnouncementBar text={settings.announcement || undefined} />
           <SiteHeader />
           <main className="min-h-[60vh]">{children}</main>
-          <SiteFooter />
+          <SiteFooter settings={settings} pages={pages} />
           <CartDrawer
             freeShipThreshold={settings.free_ship_threshold}
             shippingFlat={settings.shipping_flat}

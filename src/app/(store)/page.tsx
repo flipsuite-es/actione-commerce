@@ -27,8 +27,7 @@ export default async function HomePage() {
               {settings.tagline}
             </h1>
             <p className="mx-auto mt-6 max-w-md text-muted md:mx-0">
-              Joyas elegantes y atemporales que parecen de joyería. Para llevar
-              cada día y para regalar — sin que se estropeen.
+              {settings.hero_subtitle}
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-4 md:justify-start">
               <Link href="/tienda" className="btn-gold">
@@ -136,11 +135,7 @@ export default async function HomePage() {
           <div className="hairline mx-auto" />
           <h2 className="heading mt-4 text-4xl">Por qué Oucy</h2>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft">
-            Creemos que llevar algo bonito y elegante no debería costar una fortuna
-            ni estropearse en un mes. Seleccionamos a mano joyas de acero
-            inoxidable dorado —de las que no se oxidan ni manchan la piel— pensadas
-            para durar y acompañarte cada día. Solo vendemos lo que nosotras nos
-            pondríamos.
+            {settings.story_text}
           </p>
         </Reveal>
       </section>
