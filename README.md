@@ -1,4 +1,9 @@
-# Action-commerce — Playbook de ejecución (bajo coste, sin riesgo de baneo, aislado)
+# Oucy Studios — Playbook de ejecución (joyería asequible, bajo coste, sin baneos, aislado)
+
+> **Marca:** Oucy Studios · **dominio:** oucystudios.com · **producto:** joyería de acero dorado, elegante
+> y atemporal (quiet luxury asequible). **Arranque:** vender el stock actual a capital ~0. Kit de
+> lanzamiento en [`docs/18`](docs/18-oucystudios-kit-de-marca-y-lanzamiento.md).
+
 
 Este repositorio contiene **el plan concreto para ejecutar un e-commerce con el ADN de Action**
 (oportunidad de compra + rotación + sensación de chollo + operación simple), diseñado bajo tres
@@ -48,6 +53,7 @@ Cuando abras pasarela propia, ya lo harás con reputación, procesos y aislamien
 | [`docs/15-pricing-anillo-escenarios.md`](docs/15-pricing-anillo-escenarios.md) | **Pricing de chollo:** escenarios de precio de un anillo con margen neto real. |
 | [`docs/16-investigacion-joyeria.md`](docs/16-investigacion-joyeria.md) | **Investigación de joyería asequible:** mercado, competencia, posicionamiento recomendado. |
 | [`docs/17-gama-de-precio-decision.md`](docs/17-gama-de-precio-decision.md) | **¿Asequible o cara?** Decisión de gama: empezar asequible, escalar a demi-fine. |
+| [`docs/18-oucystudios-kit-de-marca-y-lanzamiento.md`](docs/18-oucystudios-kit-de-marca-y-lanzamiento.md) | **🚀 KIT DE LANZAMIENTO:** marca, bio, precios, fichas, primeros vídeos y pasos de esta semana. |
 
 ---
 
