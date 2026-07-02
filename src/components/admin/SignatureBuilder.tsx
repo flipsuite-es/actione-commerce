@@ -60,6 +60,10 @@ function vals(d: SigData) {
 function wordmark(size: number) {
   return `<span style="font-family:Georgia,'Times New Roman',serif;font-size:${size}px;line-height:1;color:${INK};letter-spacing:0.5px;">Oucy<span style="color:${GOLD_SOFT};font-style:italic;">&nbsp;Studios</span></span>`;
 }
+function logoTag(d: SigData, width: number) {
+  const { base } = vals(d);
+  return `<img src="https://${base}/logo.png" alt="Oucy Studios" width="${width}" style="display:block;border:0;outline:none;">`;
+}
 function brandBlock(d: SigData, opts: { center?: boolean; size?: number } = {}) {
   const { base } = vals(d);
   const size = opts.size ?? 23;
@@ -150,7 +154,7 @@ function buildCompact(d: SigData) {
   const v = vals(d);
   return `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;background:#ffffff;">
     <tr>
-      <td style="padding:2px 14px 2px 2px;border-right:2px solid ${GOLD_SOFT};vertical-align:middle;">${wordmark(17)}</td>
+      <td style="padding:2px 14px 2px 2px;border-right:2px solid ${GOLD_SOFT};vertical-align:middle;">${d.logo ? logoTag(d, 120) : wordmark(17)}</td>
       <td style="padding:2px 0 2px 14px;vertical-align:middle;">
         <div><span style="font-family:Georgia,'Times New Roman',serif;font-size:14px;font-weight:bold;color:${INK};">${v.name}</span><span style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:${GOLD};">&nbsp;&nbsp;${v.role}</span></div>
         <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${TEXT};margin-top:4px;line-height:1.5;">${inlineContact(d)}</div>
@@ -299,17 +303,17 @@ export default function SignatureBuilder() {
         </Field>
 
         <div className="space-y-2 border-t border-gold/15 pt-4">
-          <Toggle checked={d.tagline} onChange={(v) => set("tagline", v)} label="Incluir eslogan («Joyas que duran…»)" disabled={isCompact} />
+          <Toggle checked={d.tagline} onChange={(v) => set("tagline", v)} label="Incluir eslogan («Joyas para cada día»)" disabled={isCompact} />
           <Toggle checked={d.legal} onChange={(v) => set("legal", v)} label="Incluir aviso de confidencialidad" disabled={isCompact} />
-          <Toggle checked={d.logo} onChange={(v) => set("logo", v)} label="Usar el logo (imagen) en vez del texto" disabled={isCompact} />
+          <Toggle checked={d.logo} onChange={(v) => set("logo", v)} label="Usar el logo (imagen) en vez del texto" />
         </div>
         {isCompact && (
           <p className="text-xs text-muted">
-            La plantilla compacta omite eslogan, aviso legal y logo para mantenerse
-            mínima.
+            La plantilla compacta omite el eslogan y el aviso legal para mantenerse
+            mínima (el logo sí se puede usar).
           </p>
         )}
-        {d.logo && !isCompact && (
+        {d.logo && (
           <Field label="Dominio donde está alojado el logo">
             <input className={FIELD} value={d.baseUrl} onChange={(e) => set("baseUrl", e.target.value)} placeholder="oucystudios.com" />
             <p className="mt-1 text-xs text-muted">

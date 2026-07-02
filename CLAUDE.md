@@ -9,8 +9,9 @@
 **Oucy Studios** — tienda de **joyería de acero inoxidable** (elegante,
 atemporal), modelo e-commerce de baja inversión inspirado en el ADN de Action.
 Producto de proveedor (**Smile Joyas**); marca, tienda y backoffice propios.
-**OJO copy:** ninguna pieza del stock actual está bañada en oro → no decir
-"oro/baño de oro/dorado/PVD" salvo que una pieza concreta lo indique. Ver
+**OJO copy:** piezas de acero en color **plata** y **dorado**, pero **ninguna
+bañada en oro**. «Color dorado/plata» SÍ (describe el acabado); «oro / baño de
+oro / bañada en oro / oro Xk / PVD de oro» NO (falso). Ver
 `docs/contexto/DECISIONES.md` (regla de publicidad no engañosa).
 
 - **Repo:** `flipsuite-es/actione-commerce` · **Rama de trabajo:** `main` (única rama; es la de producción en Vercel)
