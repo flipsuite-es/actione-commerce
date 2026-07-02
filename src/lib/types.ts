@@ -132,3 +132,15 @@ export interface TicketThread {
   created_at: string;
   messages: { author: TicketAuthor; body: string; created_at: string }[];
 }
+
+export type NotificationKind = "ticket_new" | "ticket_reply" | "order_new";
+
+export interface Notification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string | null;
+  url: string | null;
+  read: boolean;
+  created_at: string;
+}

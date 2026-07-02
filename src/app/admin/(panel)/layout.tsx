@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { signOut } from "@/app/admin/actions";
+import { getNotifications } from "@/lib/admin-data";
+import NotificationBell from "@/components/admin/NotificationBell";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Panel · Oucy Studios" };
@@ -33,12 +35,17 @@ export default async function PanelLayout({
   }
   if (!user) redirect("/admin/login");
 
+  const { items: notifications, unread } = await getNotifications();
+
   return (
     <div className="min-h-screen bg-ivory md:grid md:grid-cols-[248px_1fr]">
       <aside className="border-b border-gold/20 bg-white/60 md:sticky md:top-0 md:h-screen md:border-b-0 md:border-r">
-        <div className="px-6 py-6">
-          <p className="font-serif text-3xl">Oucy</p>
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Backoffice</p>
+        <div className="flex items-start justify-between px-6 py-6">
+          <div>
+            <p className="font-serif text-3xl">Oucy</p>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Backoffice</p>
+          </div>
+          <NotificationBell initialItems={notifications} initialUnread={unread} />
         </div>
         <nav className="flex flex-wrap gap-1 px-3 pb-4 md:flex-col md:flex-nowrap">
           {nav.map((n) => (

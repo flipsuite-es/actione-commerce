@@ -24,8 +24,8 @@
 - [ ] Pedir al proveedor el **informe del acero** (níquel/316L) para respaldar el claim "hipoalergénico".
 
 ## 🟢 Mejoras / Fase 2
-- [ ] **Notificar tickets por email** (avisar al admin de tickets nuevos y al cliente de respuestas). Ahora
-      el flujo funciona en la web pero no envía correos automáticos (requiere Resend/Brevo o similar).
+- [ ] (Opcional) Avisar al **cliente por email** cuando el admin responde su ticket. Los avisos del ADMIN
+      ya son internos (campanita); esto sería solo para el cliente, si se quiere. Requiere Resend/Brevo.
 - [ ] Anti-spam en el formulario de soporte (rate-limit o captcha) si llega abuso.
 - [ ] **Pagos** (Stripe/Shopify Payments + PayPal + Bizum) cuando haya tráfico/historial (ver `docs/01`, `docs/03`).
 - [ ] Captura de email real (Formspree/Mailchimp/Brevo) para newsletter y muro.
@@ -42,3 +42,5 @@
 - [x] Sistema de contexto/recuperación (`CLAUDE.md` + `docs/contexto/`).
 - [x] **Sistema de tickets de soporte** (2026-07-02): migración 003 + página `/soporte` (abrir y consultar/responder
       con ref+email) + panel `/admin/soporte` (lista con filtros, hilo, responder, estado/prioridad) + stat en dashboard.
+- [x] **Notificaciones internas** (2026-07-02): migración 004 + campanita en el panel (nuevo ticket, respuesta de
+      cliente, nuevo pedido) con contador de no leídos, sondeo cada 30 s y marcar leídas. Todo interno, sin emails.

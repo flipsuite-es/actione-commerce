@@ -86,6 +86,12 @@ export const IconSparkle = (p: SVGProps<SVGSVGElement>) => (
     <path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6z" />
   </svg>
 );
+export const IconBell = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" />
+    <path d="M10.5 20a1.8 1.8 0 0 0 3 0" />
+  </svg>
+);
 export const IconInstagram = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <rect x="4" y="4" width="16" height="16" rx="4.5" />

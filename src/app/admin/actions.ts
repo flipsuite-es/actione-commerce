@@ -303,3 +303,33 @@ export async function deleteTicket(id: string) {
   revalidatePath("/admin/soporte");
   redirect("/admin/soporte");
 }
+
+/* ---------------- Notificaciones (campanita) ---------------- */
+
+export async function loadNotifications(): Promise<{
+  items: import("@/lib/types").Notification[];
+  unread: number;
+}> {
+  const supabase = await requireAdmin();
+  const { data } = await supabase
+    .from("notifications")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const items = (data as import("@/lib/types").Notification[]) ?? [];
+  const { count } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("read", false);
+  return { items, unread: count ?? 0 };
+}
+
+export async function markNotificationRead(id: string) {
+  const supabase = await requireAdmin();
+  await supabase.from("notifications").update({ read: true }).eq("id", id);
+}
+
+export async function markAllNotificationsRead() {
+  const supabase = await requireAdmin();
+  await supabase.from("notifications").update({ read: true }).eq("read", false);
+}

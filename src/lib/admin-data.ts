@@ -2,6 +2,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import type {
   Category,
   Coupon,
+  Notification,
   Order,
   Page,
   Product,
@@ -102,4 +103,27 @@ export async function getTicketWithMessages(
     .eq("ticket_id", id)
     .order("created_at", { ascending: true });
   return { ticket: ticket as Ticket, messages: (messages as TicketMessage[]) ?? [] };
+}
+
+/* ---------------- Notificaciones ---------------- */
+
+export async function getNotifications(
+  limit = 20,
+): Promise<{ items: Notification[]; unread: number }> {
+  try {
+    const supabase = createSupabaseServer();
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    const items = (data as Notification[]) ?? [];
+    const { count } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("read", false);
+    return { items, unread: count ?? items.filter((n) => !n.read).length };
+  } catch {
+    return { items: [], unread: 0 };
+  }
 }
