@@ -58,6 +58,35 @@ El objetivo es **vender tu stock + construir audiencia**, sin riesgo.
   cuida que tu **marca viva en Etsy + IG/TikTok + oucystudios.com**. Mismas fotos limpias y fichas honestas
   en todos lados para coherencia.
 
+## ¿Por qué no la tienda propia desde el día 1?
+
+No es un "no" — es un "todavía no como canal principal". La tienda propia es la meta (margen completo,
+marca, datos de cliente, sin comisiones ni reglas ajenas). Pero **liderar con ella** el día 1 choca con tus
+tres restricciones. Tres motivos honestos:
+
+1. **Tráfico cero.** Una web nueva no tiene visitas; sin visitas, no vende. Es una tienda preciosa en mitad
+   del desierto. Los marketplaces (Etsy/Wallapop) te **prestan compradores** mientras construyes tu
+   audiencia en IG/TikTok. Tu web brilla cuando **ya tienes a quién mandarle** tráfico.
+2. **Riesgo de pasarela (tu restricción nº1).** Stripe/PayPal recién abiertos + un **pico de ventas** (un
+   vídeo se hace viral → 150 pedidos en una web de 2 semanas) = **reservas, revisión o congelación de
+   fondos**. La joyería es además categoría algo sensible. Ese historial limpio se gana con tiempo, no de
+   golpe (`docs/01`).
+3. **Coste y esfuerzo con capital 0.** Montarla bien lleva tiempo + cuota mensual. Mejor **validar primero**
+   qué piezas rotan (con Etsy/Wallapop) y montar la web sabiendo qué vender y con caja generada.
+
+**Lo que SÍ conviene hacer YA con el dominio (gratis/barato):**
+- Una **landing simple** o "Próximamente" en oucystudios.com con **captura de email** + enlaces a tus
+  canales. Reservas tu presencia de marca **sin exponer pasarela**.
+- Ir preparando la tienda **en paralelo** (Shopify/Woo) sin prisa, para "abrirla" cuando toque.
+
+**Cuándo "abrir" la tienda propia como canal principal:** cuando tengas (a) **audiencia** que le mande
+tráfico y (b) **algo de historial de ventas** que baje el riesgo de pasarela. Ahí sí: pasarela a nombre de
+la entidad separada, dos vías, crecimiento gradual (`docs/01`, `docs/02`).
+
+> Si aun así quieres venderla desde ya en tu web: se puede, pero **hazlo con red** — mantén Etsy/Wallapop
+> como cobro seguro en paralelo, activa **Stripe + PayPal** (dos vías), **no** metas anuncios que generen
+> picos bruscos, y sube el volumen poco a poco. La web como complemento, no como única caja.
+
 ## Qué NO hacer al principio
 - ❌ Abrir la tienda propia con pasarela **antes** de tener historial (riesgo de baneo con caja fría).
 - ❌ Cobrar por DM con Bizum/PayPal a desconocidos (disputas).
