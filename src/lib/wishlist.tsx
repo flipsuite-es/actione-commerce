@@ -5,8 +5,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import {
+  syncWishlist,
+  addWishlist,
+  removeWishlist,
+} from "@/app/(store)/wishlist-actions";
 
 export interface WishItem {
   id: string;
@@ -30,7 +37,11 @@ const KEY = "oucy_wishlist";
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<WishItem[]>([]);
   const [ready, setReady] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const itemsRef = useRef<WishItem[]>([]);
+  itemsRef.current = items;
 
+  // Cargar de localStorage al arrancar.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
@@ -38,9 +49,34 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     setReady(true);
   }, []);
+
+  // Persistir en localStorage (fuente rápida y para anónimos).
   useEffect(() => {
     if (ready) localStorage.setItem(KEY, JSON.stringify(items));
   }, [items, ready]);
+
+  // Sincronizar con la cuenta: al iniciar sesión mezcla local + servidor.
+  useEffect(() => {
+    if (!ready) return;
+    const supabase = createSupabaseBrowser();
+    let mounted = true;
+
+    async function sync(uid: string | null) {
+      setUserId(uid);
+      if (!uid) return;
+      const merged = await syncWishlist(itemsRef.current);
+      if (mounted && Array.isArray(merged)) setItems(merged);
+    }
+
+    supabase.auth.getUser().then(({ data }) => sync(data.user?.id ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
+      sync(session?.user?.id ?? null),
+    );
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [ready]);
 
   const api = useMemo<WishCtx>(
     () => ({
@@ -48,14 +84,23 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       count: items.length,
       has: (id) => items.some((i) => i.id === id),
       toggle: (item) =>
-        setItems((prev) =>
-          prev.some((i) => i.id === item.id)
+        setItems((prev) => {
+          const exists = prev.some((i) => i.id === item.id);
+          if (userId) {
+            if (exists) removeWishlist(item.id);
+            else addWishlist(item);
+          }
+          return exists
             ? prev.filter((i) => i.id !== item.id)
-            : [...prev, item],
-        ),
-      remove: (id) => setItems((prev) => prev.filter((i) => i.id !== id)),
+            : [...prev, item];
+        }),
+      remove: (id) =>
+        setItems((prev) => {
+          if (userId) removeWishlist(id);
+          return prev.filter((i) => i.id !== id);
+        }),
     }),
-    [items],
+    [items, userId],
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

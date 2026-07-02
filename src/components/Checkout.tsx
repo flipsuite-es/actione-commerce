@@ -9,12 +9,19 @@ import { createOrder, validateCoupon } from "@/app/(store)/carrito/actions";
 export default function Checkout({
   freeShipThreshold,
   shippingFlat,
+  initial,
 }: {
   freeShipThreshold: number;
   shippingFlat: number;
+  initial?: { name: string; email: string; phone: string };
 }) {
   const { items, subtotal, clear } = useCart();
-  const [form, setForm] = useState({ name: "", email: "", phone: "", note: "" });
+  const [form, setForm] = useState({
+    name: initial?.name ?? "",
+    email: initial?.email ?? "",
+    phone: initial?.phone ?? "",
+    note: "",
+  });
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
   const [orderRef, setOrderRef] = useState("");
