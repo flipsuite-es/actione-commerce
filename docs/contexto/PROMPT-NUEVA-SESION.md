@@ -18,7 +18,7 @@ en este orden y confírmame que lo has hecho con un resumen de 5 líneas:
 
 Reglas de esta colaboración (respétalas siempre):
 - Trabaja SOLO en este repositorio (flipsuite-es/actione-commerce), rama
-  claude/ecommerce-low-investment-model-ru62lb. Aislamiento total: no toques ni
+  main (rama única y de producción). Aislamiento total: no toques ni
   menciones mis otros proyectos.
 - La tienda sigue en PRE-LANZAMIENTO (muro con código). No la hagas pública hasta
   que yo lo diga.
@@ -29,10 +29,10 @@ Reglas de esta colaboración (respétalas siempre):
   docs/contexto/PENDIENTES.md (y DECISIONES.md si aplica) y haz push, para que en la
   próxima sesión tengas contexto perfecto. Recuérdamelo si me olvido.
 
-Si has reconfigurado el conector de Supabase para incluir la organización "Oucy
-Studios", dímelo: entonces puedes gestionar la base de datos tú mismo (proyecto
-jedyummyygniixuyzbck), y lo primero pendiente es ejecutar la migración
-supabase/migrations/002_backoffice.sql.
+El conector de Supabase YA está autorizado para la org "Oucy Studios" (proyecto
+jedyummyygniixuyzbck), así que puedes gestionar la base de datos tú mismo. La
+migración 002_backoffice.sql YA está aplicada. El siguiente paso es cargar el
+catálogo real por /admin (categorías y productos).
 
 Cuando termines de leer, dime cuál es el siguiente paso según PENDIENTES y seguimos.
 ```
@@ -41,9 +41,9 @@ Cuando termines de leer, dime cuál es el siguiente paso según PENDIENTES y seg
 
 ## Notas de uso
 - **Cada vez** que abras una sesión nueva, pega ese bloque como primer mensaje.
-- Si has **reautorizado Supabase** para la org Oucy antes de abrir la sesión, Claude
-  podrá ejecutar la migración y gestionar la base de datos por sí mismo.
-- Si NO lo has reautorizado, Claude te pedirá que pegues el SQL o que reconectes; el
-  resto (código, diseño, deploy) lo puede hacer igualmente.
+- El conector de **Supabase ya está autorizado** para la org Oucy: Claude gestiona la
+  base de datos (migraciones, SQL) por sí mismo desde el proyecto `jedyummyygniixuyzbck`.
+- Rama única de trabajo y producción: **`main`**. (Las ramas antiguas `claude/…` quedaron
+  unificadas en `main` el 2026-07-02.)
 - Recuerda: la fuerza de este sistema depende de que los archivos de `docs/contexto/`
   estén **al día**. Exígelo en cada sesión.

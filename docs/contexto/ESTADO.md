@@ -9,7 +9,7 @@ backoffice completos y funcionando.
 
 ## Repositorio
 - GitHub: `flipsuite-es/actione-commerce`
-- Rama de trabajo: `claude/ecommerce-low-investment-model-ru62lb` (única rama; es la de producción en Vercel)
+- Rama de trabajo: `main` (única rama; es la de producción en Vercel). Unificación hecha el 2026-07-02: las ramas antiguas `claude/ecommerce-low-investment-model-ru62lb` y `claude/oucy-studios-context-review-vef7e0` se consolidaron en `main` (historial lineal, sin pérdidas).
 - La **aplicación Next.js está en la RAÍZ** del repo (se movió desde `web/` para que Vercel la construyera sin "Root Directory").
 - Documentación de estrategia/negocio: `docs/00-*.md … docs/19-*.md` + `docs/despliegue-app.md`.
 

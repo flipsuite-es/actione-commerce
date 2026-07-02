@@ -9,6 +9,12 @@
 - [ ] **SIGUIENTE:** cargar catálogo real por `/admin` → primero **categorías**, luego **productos** con fotos.
       (Requiere que el usuario entre en `/admin` con su email/contraseña de Supabase Auth.)
 
+## 🟠 Config de plataformas (solo el usuario puede tocarlo)
+- [ ] **GitHub → Settings → Branches:** poner `main` como **rama por defecto** del repo.
+- [ ] **Vercel → Project `oucystudios` → Settings → Git:** cambiar la **Production Branch** a `main`
+      (ahora apunta a `claude/ecommerce-low-investment-model-ru62lb`). Sin esto, los push a `main` NO redespliegan.
+- [ ] Tras cambiar lo anterior: avisar a Claude para **borrar las ramas antiguas** `claude/…` del remoto.
+
 ## 🟡 Para lanzar de verdad
 - [ ] Subir **productos reales** por `/admin/productos` (fotos ya en poder del usuario).
 - [ ] Crear **categorías** (Anillos, Pendientes, Colgantes…) en `/admin/categorias`.

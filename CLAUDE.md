@@ -10,7 +10,7 @@
 atemporal, "no se oxida"), modelo e-commerce de baja inversión inspirado en el
 ADN de Action. Marca, tienda y backoffice propios.
 
-- **Repo:** `flipsuite-es/actione-commerce` · **Rama de trabajo:** `claude/ecommerce-low-investment-model-ru62lb`
+- **Repo:** `flipsuite-es/actione-commerce` · **Rama de trabajo:** `main` (única rama; es la de producción en Vercel)
 - **App:** Next.js 14 (App Router, TS) + Tailwind + Supabase (Postgres/Auth/Storage), **en la RAÍZ del repo**.
 - **Estrategia/negocio:** en `docs/00-19*.md` (análisis, nicho, gama, pricing, marca, canales…).
 - **Web en vivo (pre-lanzamiento):** https://oucystudios.vercel.app · **Dominio:** oucystudios.com (registrado, sin conectar aún).
@@ -25,7 +25,7 @@ ADN de Action. Marca, tienda y backoffice propios.
 ## Reglas permanentes (no romper)
 1. **Aislamiento total:** trabaja SOLO en este repo. No toques ni menciones otros proyectos del usuario. Todo (Supabase, Vercel, dominio, cuentas) es dedicado a Oucy.
 2. **No hacer pública la tienda** hasta que el usuario lo diga: el muro de pre-lanzamiento se queda ACTIVO.
-3. **Trabaja en la rama** `claude/ecommerce-low-investment-model-ru62lb`. Commit + push con frecuencia (Vercel redespliega solo).
+3. **Trabaja en la rama** `main` (rama única y de producción). Commit + push con frecuencia (Vercel redespliega solo). Las ramas antiguas `claude/ecommerce-low-investment-model-ru62lb` y `claude/oucy-studios-context-review-vef7e0` quedaron unificadas en `main` el 2026-07-02; no usarlas.
 4. **Nunca commitear secretos** (service_role, contraseñas, `.env.local`). La anon key es pública y vive en las env de Vercel.
 5. **Mantén el contexto al día:** cada vez que cambies algo importante, actualiza `CLAUDE.md` + `docs/contexto/*` y haz push. Es obligatorio.
 6. **Honestidad:** reporta fielmente lo hecho y lo pendiente.
