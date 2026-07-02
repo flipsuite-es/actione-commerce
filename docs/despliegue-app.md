@@ -36,7 +36,7 @@ Desplegable **gratis** en Vercel + Supabase.
 ## Desplegar (gratis)
 
 1. Sube el repo a GitHub (ya está).
-2. En **Vercel** → New Project → importa el repo, **Root Directory = `web`**.
+2. En **Vercel** → New Project → importa el repo (la app está en la **raíz**, no hace falta tocar Root Directory).
 3. Añade las variables de entorno del `.env.example` en Vercel.
 4. Deploy. Luego apunta tu dominio `oucystudios.com` en Vercel → Domains.
 
