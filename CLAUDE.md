@@ -6,9 +6,12 @@
 > sesión arrancará con contexto incompleto.
 
 ## Qué es esto
-**Oucy Studios** — tienda de **joyería de acero inoxidable dorado** (elegante,
-atemporal, "no se oxida"), modelo e-commerce de baja inversión inspirado en el
-ADN de Action. Marca, tienda y backoffice propios.
+**Oucy Studios** — tienda de **joyería de acero inoxidable** (elegante,
+atemporal), modelo e-commerce de baja inversión inspirado en el ADN de Action.
+Producto de proveedor (**Smile Joyas**); marca, tienda y backoffice propios.
+**OJO copy:** ninguna pieza del stock actual está bañada en oro → no decir
+"oro/baño de oro/dorado/PVD" salvo que una pieza concreta lo indique. Ver
+`docs/contexto/DECISIONES.md` (regla de publicidad no engañosa).
 
 - **Repo:** `flipsuite-es/actione-commerce` · **Rama de trabajo:** `main` (única rama; es la de producción en Vercel)
 - **App:** Next.js 14 (App Router, TS) + Tailwind + Supabase (Postgres/Auth/Storage), **en la RAÍZ del repo**.

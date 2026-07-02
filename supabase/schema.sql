@@ -25,7 +25,7 @@ create table if not exists public.products (
   compare_at_price  numeric(10,2),                             -- precio "antes" (ancla)
   stock             int not null default 0,                    -- unidades disponibles
   sku               text,
-  material          text default 'Acero inoxidable dorado',
+  material          text default 'Acero inoxidable',
   category_id       uuid references public.categories(id) on delete set null,
   images            text[] not null default '{}',              -- URLs (Supabase Storage)
   status            text not null default 'draft',             -- 'active' | 'draft'

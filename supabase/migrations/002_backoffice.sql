@@ -10,7 +10,7 @@ alter table public.settings add column if not exists tiktok_url    text default 
 alter table public.settings add column if not exists whatsapp_url  text default '';
 alter table public.settings add column if not exists contact_email text default '';
 alter table public.settings add column if not exists hero_subtitle text default 'Joyas elegantes y atemporales que parecen de joyería. Para llevar cada día y para regalar — sin que se estropeen.';
-alter table public.settings add column if not exists story_text    text default 'Creemos que llevar algo bonito y elegante no debería costar una fortuna ni estropearse en un mes. Seleccionamos a mano joyas de acero inoxidable dorado —de las que no se oxidan ni manchan la piel— pensadas para durar y acompañarte cada día.';
+alter table public.settings add column if not exists story_text    text default 'Oucy Studios nace de una idea sencilla: llevar algo bonito no debería ser un lujo reservado para las grandes ocasiones. Elegimos con cuidado piezas atemporales, pensadas para tu día a día y para los momentos que quieres recordar. Joyas para tener siempre, para regalarte y para regalar.';
 
 -- ---------- Pedidos: estado avanzado ----------
 alter table public.orders add column if not exists tracking    text;
@@ -58,6 +58,6 @@ create trigger pages_touch before update on public.pages
 insert into public.pages (slug, title, body, sort) values
   ('envios', 'Envíos y entregas', 'Preparamos tu pedido en 24–72 h y lo enviamos desde España con seguimiento. Envío gratis a partir de 24,90 €.', 1),
   ('devoluciones', 'Devoluciones', 'Dispones de 14 días para devolver tu pedido. Por higiene, los pendientes solo se admiten si vienen precintados.', 2),
-  ('cuidado', 'Cuidado de tus joyas', 'Nuestras piezas son de acero inoxidable, resistente y pensado para el uso diario: aguanta bien el agua y la humedad. En las piezas con acabado dorado, el color se aplica con tecnología PVD, más duradera que el baño convencional. Para que se conserven como el primer día, guárdalas en un lugar seco y evita el contacto directo con perfume, cremas o productos de limpieza.', 3),
+  ('cuidado', 'Cuidado de tus joyas', 'Nuestras piezas son de acero inoxidable, resistente y pensado para el uso diario: aguanta bien el agua y la humedad. Para que se conserven como el primer día, guárdalas en un lugar seco y evita el contacto directo con perfume, cremas o productos de limpieza.', 3),
   ('privacidad', 'Política de privacidad', 'Tratamos tus datos conforme al RGPD. Escríbenos para cualquier consulta sobre tus datos.', 4)
 on conflict (slug) do nothing;

@@ -9,12 +9,13 @@
 - **Aislamiento:** todo dedicado a Oucy, separado de los otros proyectos del usuario.
 
 ## Producto y posicionamiento
-- **Nicho/producto:** joyería de **acero inoxidable dorado** (el usuario ya tiene stock y proveedor).
+- **Nicho/producto:** joyería de **acero inoxidable** (el usuario tiene stock; proveedor **Smile Joyas**).
+  ⚠️ **Ninguna pieza del stock actual está bañada en oro.** No describir el producto como "dorado / baño de oro
+  / oro / PVD de oro" en genérico; solo si una pieza CONCRETA lo es (el admin lo pone en su campo "material").
 - **Gama:** **asequible** ahora (acero, ~10–18 €), escalar a **demi-fine** con caja. NO ir a fina/cara
   (capital, contraste, chargebacks). Ver `docs/17`.
-- **Posicionamiento:** *quiet luxury* asequible — "joyas doradas elegantes y atemporales que no se oxidan,
-  para el día a día y para regalar". El "no se oxida/hipoalergénico" es **garantía**, no el eslogan; el
-  wedge real es estética + historia + comunidad + calidad honesta. Ver `docs/16`.
+- **Posicionamiento:** *quiet luxury* asequible — "joyas elegantes y atemporales, para el día a día y para
+  regalar". El wedge real es estética + historia + comunidad + calidad honesta. Ver `docs/16`.
 - **Público:** mujer 25–45 que se autorregala y regala.
 
 ## Marca
@@ -25,7 +26,7 @@
 - **Material por defecto de producto:** "Acero inoxidable" (neutro); el admin especifica el acabado (dorado/plateado/…) por pieza. Nunca decir "oro" a secas.
 - **Reglas de honestidad:** perlas = "sintéticas"; el material real (acero, baño/acabado) se dice en la ficha, nunca "oro" a secas; nada de copias/IP.
 - **Producto de PROVEEDOR (Smile Joyas) — NADA de publicidad engañosa (2026-07-02):** las piezas se compran a un proveedor, NO las diseñamos ni fabricamos. Prohibido afirmar/insinuar: "diseñamos", "diseñadas/hechas por nosotras", "nuestro estudio de diseño", "hecho/fabricado en España", "hecho a mano". SÍ es cierto y se puede decir: que **elegimos/seleccionamos con cuidado** (curación), atención cercana, "para el día a día y para regalar". Métodos de pago concretos (Visa/PayPal/Bizum) NO se anuncian hasta que estén activos. Aplica a web Y firmas de email.
-- **Datos del producto que SÍ podemos decir (Smile Joyas, verificado 2026-07-02):** acero inoxidable **316 (piezas rígidas) y 304 (ajustables)**; baño de oro **14k/18k con tecnología PVD** (acabado más duradero que el chapado convencional); **resistente al agua y al uso diario**. Proveedor español (Sevilla/Madrid, fundado 2022). **NO afirmar:** "hipoalergénico/apto para piel sensible/sin níquel" (usan 304 en ajustables → no garantizable) ni "oro 18k" a secas (es BAÑO, no oro macizo → siempre "baño de oro/acabado dorado PVD"). Estos datos van en la ficha (Materiales y cuidado) y en `/cuidado`, y como nota de calidad suave, no como reclamo machacón.
+- **Datos del producto que SÍ podemos decir (Smile Joyas, verificado 2026-07-02):** **acero inoxidable** (el proveedor usa 316 en rígidas y 304 en ajustables); **resistente al agua y al uso diario**. Proveedor español (Sevilla/Madrid, fundado 2022). **NO afirmar:** "baño de oro / oro / dorado / PVD de oro" (el stock del usuario NO tiene piezas bañadas en oro), "hipoalergénico/apto para piel sensible/sin níquel" (usan 304 en ajustables → no garantizable). Los datos de material van en la ficha (Materiales y cuidado) y en `/cuidado`, como nota de calidad suave, no como reclamo machacón. Si en el futuro entra una pieza que SÍ sea dorada/bañada, se describe esa pieza en su campo "material", no en el copy genérico.
 - **Logística confirmada por el usuario (2026-07-02):** el **packaging lo hace el usuario** (cuidado) → SÍ se puede decir "packaging cuidado". Los **envíos salen desde España** (casa del usuario) → SÍ "envío desde España".
 
 ## Canales (ver `docs/19`)
