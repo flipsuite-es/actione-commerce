@@ -37,6 +37,7 @@ backoffice completos y funcionando.
   (Recomendado añadir `NEXT_PUBLIC_SITE_URL=https://oucystudios.com` cuando se conecte el dominio, para SEO/OG/sitemap.)
 - **Auto-deploy:** cada push a la rama de trabajo dispara un deploy. Root Directory = raíz (app en raíz).
 - Dominio `oucystudios.com`: registrado; **pendiente** conectarlo en Vercel → Domains.
+- ⚠️ **OJO conector Vercel MCP:** en esta sesión el conector de Vercel SOLO expone el OTRO proyecto del usuario (no Oucy), así que Claude **NO puede inspeccionar ni verificar el proyecto `oucystudios`** por MCP. La verificación del deploy de Oucy (Production Branch, estado) la hace el usuario en su panel. No usar herramientas de Vercel sobre el otro proyecto (aislamiento).
 
 ## Estructura de la app (rutas)
 Storefront (grupo `(store)`, tras el muro):
