@@ -58,6 +58,6 @@ create trigger pages_touch before update on public.pages
 insert into public.pages (slug, title, body, sort) values
   ('envios', 'Envíos y entregas', 'Preparamos tu pedido en 24–72 h y lo enviamos desde España con seguimiento. Envío gratis a partir de 24,90 €.', 1),
   ('devoluciones', 'Devoluciones', 'Dispones de 14 días para devolver tu pedido. Por higiene, los pendientes solo se admiten si vienen precintados.', 2),
-  ('cuidado', 'Cuidado de tus joyas', 'Nuestras piezas son de acero inoxidable: resistente y pensado para el uso diario. Para que se conserven como el primer día, guárdalas en un lugar seco y evita el contacto directo con perfume, cremas o productos de limpieza.', 3),
+  ('cuidado', 'Cuidado de tus joyas', 'Nuestras piezas son de acero inoxidable, resistente y pensado para el uso diario: aguanta bien el agua y la humedad. En las piezas con acabado dorado, el color se aplica con tecnología PVD, más duradera que el baño convencional. Para que se conserven como el primer día, guárdalas en un lugar seco y evita el contacto directo con perfume, cremas o productos de limpieza.', 3),
   ('privacidad', 'Política de privacidad', 'Tratamos tus datos conforme al RGPD. Escríbenos para cualquier consulta sobre tus datos.', 4)
 on conflict (slug) do nothing;

@@ -147,9 +147,10 @@ export default async function ProductPage({
           {/* detalles */}
           <div className="mt-8 divide-y divide-gold/15 border-y border-gold/15">
             <Detail title="Materiales y cuidado">
-              {product.material || "Acero inoxidable"}. Guárdala en un lugar
-              seco y evita el contacto directo con perfume o cremas para conservar su
-              brillo.
+              {product.material || "Acero inoxidable"}. Resistente al agua y pensada
+              para el uso diario; en las piezas con acabado dorado, el color se aplica
+              con tecnología PVD para que dure más. Guárdala en un lugar seco y evita el
+              contacto directo con perfume o cremas para conservar su brillo.
             </Detail>
             <Detail title="Envíos">
               Envío en 24–72 h desde España con seguimiento. Gratis a partir de 24,90 €.

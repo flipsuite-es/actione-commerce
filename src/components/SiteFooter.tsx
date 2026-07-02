@@ -29,8 +29,8 @@ export default function SiteFooter({
       <div className="container-lux grid gap-6 border-b border-gold/10 py-10 sm:grid-cols-3">
         {[
           { icon: IconSparkle, t: "Estilo atemporal", s: "Piezas pensadas para quedarse" },
-          { icon: IconGift, t: "Para regalar", s: "El detalle que sorprende" },
-          { icon: IconTruck, t: "Envío con seguimiento", s: "Sigue tu pedido en todo momento" },
+          { icon: IconGift, t: "Para regalar", s: "Con un packaging cuidado" },
+          { icon: IconTruck, t: "Envío desde España", s: "Preparado con mimo, con seguimiento" },
         ].map(({ icon: Icon, t, s }) => (
           <div key={t} className="flex items-center gap-4">
             <span className="grid h-11 w-11 place-items-center rounded-full border border-gold/30 text-gold-3">
