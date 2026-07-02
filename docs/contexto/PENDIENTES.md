@@ -59,3 +59,5 @@
       ahora se nutren de reseñas reales aprobadas (con fallback). Dashboard con más indicadores.
 - [x] **Opción de regalo en el checkout** (2026-07-02): marca "Es un regalo" + mensaje para la tarjeta; llega al
       admin en la nota del pedido.
+- [x] **Generador de firmas de email** (2026-07-02): `/admin/firma`, herramienta para que el equipo cree su firma
+      brandeada y elegante (tablas + estilos en línea, web-safe), con vista previa y copiar a Gmail/Outlook. Sin DB.

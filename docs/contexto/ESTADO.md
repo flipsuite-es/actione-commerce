@@ -49,7 +49,7 @@ Backoffice (`/admin`, Supabase Auth):
 - `/admin` panel con métricas (incl. tickets por responder) · `/admin/productos` (+ nuevo/[id]) · `/admin/categorias` · `/admin/pedidos` (+ [id]) · `/admin/soporte` (+ [id], hilo + responder + estado/prioridad) · `/admin/cupones` · `/admin/paginas` (+ nueva/[id]) · `/admin/ajustes`
 SEO: `/sitemap.xml`, `/robots.txt`, metadata + OG por producto + **JSON-LD (schema.org/Product)** con precio/stock/marca.
 Legal/UX: **banner de cookies RGPD** (`CookieConsent`, guarda aceptación en localStorage, enlaza a /pagina/privacidad).
-Backoffice extra: **exportar pedidos a CSV** (`/admin/pedidos/export`, con BOM para Excel) · **buscador+filtros** (activos/borradores/stock bajo) en la lista de productos · **moderación de reseñas** (`/admin/resenas`) · **suscriptores** (`/admin/suscriptores` + export CSV).
+Backoffice extra: **exportar pedidos a CSV** (`/admin/pedidos/export`, con BOM para Excel) · **buscador+filtros** (activos/borradores/stock bajo) en la lista de productos · **moderación de reseñas** (`/admin/resenas`) · **suscriptores** (`/admin/suscriptores` + export CSV) · **generador de firmas de email** (`/admin/firma`): herramienta para que el equipo cree su firma brandeada (tablas + estilos en línea, web-safe) y la copie a Gmail/Outlook/Apple Mail. Sin DB.
 Reseñas: en la ficha de producto (estrellas junto al título + sección de opiniones con formulario; `aggregateRating` en el JSON-LD). Newsletter: captura real de correos (guarda en `subscribers`).
 Favicon propio y cuadrado (`src/app/icon.svg` — anillo dorado con destello) + `apple-icon.png` + `manifest.webmanifest` (PWA instalable).
 

@@ -19,6 +19,7 @@ const nav = [
   { href: "/admin/cupones", label: "Cupones" },
   { href: "/admin/paginas", label: "Páginas" },
   { href: "/admin/suscriptores", label: "Suscriptores" },
+  { href: "/admin/firma", label: "Firmas" },
   { href: "/admin/ajustes", label: "Ajustes" },
 ];
 
