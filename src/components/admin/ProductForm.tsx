@@ -129,7 +129,7 @@ export default function ProductForm({
             <input
               name="material"
               className="input"
-              defaultValue={product?.material ?? "Acero inoxidable dorado"}
+              defaultValue={product?.material ?? "Acero inoxidable"}
             />
           </div>
           <div>

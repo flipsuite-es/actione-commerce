@@ -20,9 +20,10 @@
 ## Marca
 - **Nombre:** **Oucy Studios** · **Dominio:** `oucystudios.com` (`.com` propio; se descartaron nombres
   cuyo `.com` no era del usuario). Estética blanco/ivory + oro, serif elegante.
-- **Tagline:** "Oro para cada día." (antes "Joyas que duran, no se oxidan" — descartada por sonar a producto, no a marca).
-- **Tono de voz (2026-07-02):** **de MARCA**, no de producto. Aspiracional, elegante, mínimo en lo técnico. Se habla de estilo, atemporalidad, día a día y regalar; el estudio/atelier. Los claims de producto ("acero", "no se oxida", "hipoalergénico/níquel") salen **solo lo mínimo y necesario**: en la ficha (Materiales y cuidado) y en la página `/cuidado`. NO en hero, testimonios, footer, firma, metadata ni anuncios. (Petición explícita del usuario.)
-- **Reglas de honestidad:** perlas = "sintéticas", "acero dorado/baño de oro" (nunca "oro" a secas en fichas/materiales), nada de copias/IP. (Compatible con el tono de marca: el material real se dice donde toca, sin convertirlo en el eslogan.)
+- **Tagline:** "Joyas para cada día." (descartadas: "Joyas que duran, no se oxidan" —suena a producto— y "Oro para cada día" —FALSO: es acero inoxidable, no oro, y no todo es dorado—).
+- **Tono de voz (2026-07-02):** **de MARCA**, no de producto ni de "todo a 100". Aspiracional, elegante, **material-neutro**: se habla de estilo, atemporalidad, día a día, el estudio y regalar. **NO anclar la identidad en "oro/dorado"** (es acero inoxidable y no todas las piezas son doradas) ni en features ("no se oxida", "hipoalergénico/níquel"). Los datos técnicos salen **solo lo mínimo y necesario**: ficha (Materiales y cuidado, con el acabado real por producto) y página `/cuidado`. (Petición explícita del usuario.)
+- **Material por defecto de producto:** "Acero inoxidable" (neutro); el admin especifica el acabado (dorado/plateado/…) por pieza. Nunca decir "oro" a secas.
+- **Reglas de honestidad:** perlas = "sintéticas"; el material real (acero, baño/acabado) se dice en la ficha, nunca "oro" a secas; nada de copias/IP.
 
 ## Canales (ver `docs/19`)
 - **Descubrir:** Instagram + TikTok (contenido diario, formato *antes/después* y try-on).

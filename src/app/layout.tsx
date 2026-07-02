@@ -10,14 +10,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Oucy Studios · Joyería dorada atemporal",
+    default: "Oucy Studios · Joyería atemporal",
     template: "%s · Oucy Studios",
   },
   description:
-    "Joyas doradas atemporales, diseñadas en estudio para llevar cada día y para regalar.",
+    "Piezas atemporales, diseñadas en estudio para llevar cada día y para regalar.",
   openGraph: {
     title: "Oucy Studios",
-    description: "Joyería dorada atemporal. Oro para cada día.",
+    description: "Joyería atemporal para cada día.",
     type: "website",
     locale: "es_ES",
     images: ["/logo.png"],

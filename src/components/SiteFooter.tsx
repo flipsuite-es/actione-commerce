@@ -48,7 +48,7 @@ export default function SiteFooter({
         <div className="sm:col-span-1">
           <p className="font-serif text-2xl">{settings.shop_name}</p>
           <p className="mt-3 max-w-xs text-sm text-muted">
-            Estudio de joyería dorada. Piezas atemporales, para llevar cada día.
+            Estudio de joyería. Piezas atemporales, para llevar cada día.
           </p>
           <div className="mt-4 flex gap-3 text-gold-3">
             {settings.instagram_url && (

@@ -23,7 +23,7 @@ export default async function HomePage() {
       <section className="relative overflow-hidden">
         <div className="container-lux grid items-center gap-10 py-16 md:grid-cols-2 md:py-24">
           <Reveal className="text-center md:text-left">
-            <p className="kicker">Joyería dorada atemporal</p>
+            <p className="kicker">Joyería atemporal</p>
             <h1 className="heading mt-6 text-5xl italic sm:text-6xl lg:text-7xl">
               {settings.tagline}
             </h1>
@@ -93,7 +93,7 @@ export default async function HomePage() {
           {[
             { icon: IconSparkle, t: "Diseño atemporal", s: "Piezas que no pasan de moda, para llevar hoy y dentro de muchos años." },
             { icon: IconGift, t: "Para ti y para regalar", s: "El detalle que alegra un día cualquiera, con un packaging cuidado listo para sorprender." },
-            { icon: IconHeart, t: "Hechas para acompañarte", s: "Un dorado cuidado, pensado para tu día a día y para quedarse contigo." },
+            { icon: IconHeart, t: "Hechas para acompañarte", s: "Piezas cuidadas, pensadas para tu día a día y para quedarse contigo." },
           ].map(({ icon: Icon, t, s }, i) => (
             <Reveal key={t} delay={i * 90} className="text-center">
               <span className="mx-auto grid h-14 w-14 place-items-center rounded-full border border-gold/30 text-gold-3">

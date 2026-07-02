@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Oucy Studios",
     short_name: "Oucy",
-    description: "Joyería dorada atemporal, diseñada para llevar cada día.",
+    description: "Joyería atemporal, diseñada para llevar cada día.",
     start_url: "/",
     display: "standalone",
     background_color: "#fbf8f1",

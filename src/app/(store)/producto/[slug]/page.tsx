@@ -22,7 +22,7 @@ export async function generateMetadata({
   return {
     title: `${product.name} · Oucy Studios`,
     description:
-      (product.description || "Una pieza de Oucy Studios, joyería dorada atemporal.").slice(0, 160),
+      (product.description || "Una pieza de Oucy Studios, joyería atemporal.").slice(0, 160),
     openGraph: {
       title: product.name,
       description: product.description || undefined,
@@ -62,7 +62,7 @@ export default async function ProductPage({
     "@type": "Product",
     name: product.name,
     description:
-      product.description || "Una pieza de Oucy Studios, joyería dorada atemporal.",
+      product.description || "Una pieza de Oucy Studios, joyería atemporal.",
     image: product.images?.length ? product.images : undefined,
     sku: product.sku || undefined,
     brand: { "@type": "Brand", name: "Oucy Studios" },
@@ -147,7 +147,7 @@ export default async function ProductPage({
           {/* detalles */}
           <div className="mt-8 divide-y divide-gold/15 border-y border-gold/15">
             <Detail title="Materiales y cuidado">
-              {product.material || "Acero inoxidable dorado"}. Guárdala en un lugar
+              {product.material || "Acero inoxidable"}. Guárdala en un lugar
               seco y evita el contacto directo con perfume o cremas para conservar su
               brillo.
             </Detail>

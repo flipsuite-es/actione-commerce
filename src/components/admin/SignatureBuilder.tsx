@@ -67,7 +67,7 @@ function brandBlock(d: SigData, opts: { center?: boolean; size?: number } = {}) 
     return `<img src="https://${base}/logo.png" alt="Oucy Studios" width="${opts.center ? 170 : 150}" style="display:block;border:0;outline:none;${opts.center ? "margin:0 auto 8px;" : "margin-bottom:8px;"}">`;
   }
   return `<div${opts.center ? ' style="text-align:center;"' : ""}>${wordmark(size)}</div>
-    <div style="font-family:Arial,Helvetica,sans-serif;font-size:8.5px;letter-spacing:3px;text-transform:uppercase;color:${MUTED};margin-top:5px;${opts.center ? "text-align:center;" : ""}">Joyería dorada · Estudio</div>`;
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:8.5px;letter-spacing:3px;text-transform:uppercase;color:${MUTED};margin-top:5px;${opts.center ? "text-align:center;" : ""}">Estudio de joyería</div>`;
 }
 
 function contactRow(label: string, value: string, href: string) {
@@ -102,7 +102,7 @@ function socialInline(d: SigData) {
   return p.join(dot);
 }
 function taglineRow(colspan = 2) {
-  return `<tr><td colspan="${colspan}" style="padding-top:12px;"><div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:12px;color:${GOLD};"><span style="color:${GOLD_SOFT};">&#10022;</span>&nbsp;Oro para cada día.</div></td></tr>`;
+  return `<tr><td colspan="${colspan}" style="padding-top:12px;"><div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:12px;color:${GOLD};"><span style="color:${GOLD_SOFT};">&#10022;</span>&nbsp;Joyas para cada día.</div></td></tr>`;
 }
 function legalRow(colspan = 2) {
   return `<tr><td colspan="${colspan}" style="padding-top:10px;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.5;color:#b3a888;">Este mensaje y sus adjuntos son confidenciales y de uso exclusivo del destinatario. Si lo has recibido por error, avísanos y elimínalo. Por favor, piensa en el medioambiente antes de imprimir.</div></td></tr>`;
@@ -141,7 +141,7 @@ function buildStacked(d: SigData) {
     <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${GOLD};padding:4px 0 10px;">${v.role}</td></tr>
     <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${TEXT};line-height:1.7;">${inlineContact(d)}</td></tr>
     ${socialInline(d) ? `<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:11px;padding-top:2px;">${socialInline(d)}</td></tr>` : ""}
-    ${d.tagline ? `<tr><td style="padding-top:12px;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:12px;color:${GOLD};"><span style="color:${GOLD_SOFT};">&#10022;</span>&nbsp;Oro para cada día.</td></tr>` : ""}
+    ${d.tagline ? `<tr><td style="padding-top:12px;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:12px;color:${GOLD};"><span style="color:${GOLD_SOFT};">&#10022;</span>&nbsp;Joyas para cada día.</td></tr>` : ""}
     ${d.legal ? `<tr><td style="padding-top:10px;font-family:Arial,Helvetica,sans-serif;font-size:9px;line-height:1.5;color:#b3a888;">Este mensaje y sus adjuntos son confidenciales y de uso exclusivo del destinatario. Si lo has recibido por error, avísanos y elimínalo.</td></tr>` : ""}
   </table>`;
 }
