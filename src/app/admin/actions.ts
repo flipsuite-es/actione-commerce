@@ -121,12 +121,31 @@ export async function uploadImage(formData: FormData): Promise<string> {
   const supabase = await requireAdmin();
   const file = formData.get("file") as File | null;
   if (!file) throw new Error("Sin archivo");
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+
+  const original = Buffer.from(await file.arrayBuffer());
+
+  // Procesado automático: endereza (EXIF), recorta cuadrado 1400px y optimiza a
+  // WebP. Si sharp fallara, se sube la imagen original tal cual (no bloquea).
+  let out = original;
+  let ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  let contentType = file.type || "image/jpeg";
+  try {
+    const sharp = (await import("sharp")).default;
+    out = await sharp(original)
+      .rotate()
+      .resize(1400, 1400, { fit: "cover", position: "centre" })
+      .webp({ quality: 82 })
+      .toBuffer();
+    ext = "webp";
+    contentType = "image/webp";
+  } catch {
+    /* sin procesar: se sube el original */
+  }
+
   const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, buffer, { contentType: file.type || "image/jpeg", upsert: false });
+    .upload(path, out, { contentType, upsert: false });
   if (error) throw new Error(error.message);
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;

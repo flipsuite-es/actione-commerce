@@ -33,6 +33,10 @@ backoffice completos y funcionando.
   - Verificación advisors (seguridad): solo WARN esperados — las políticas `*_admin_all ... using(true)` para el admin autenticado son **por diseño** (ver DECISIONES: el admin gestiona todo vía su sesión RLS); `function_search_path_mutable` en `touch_updated_at` y `auth_leaked_password_protection` son WARN menores no bloqueantes.
 - Usuario admin: creado por el usuario en Authentication (email + contraseña propios). Entra en `/admin`.
 - Bucket de imágenes: `product-images` (público).
+- **Procesado automático de fotos al subir** (`uploadImage` en `admin/actions.ts`, con `sharp`): endereza (EXIF),
+  recorta **cuadrado 1400×1400** y optimiza a **WebP** (q82). Si `sharp` fallara, sube el original. `sharp` es
+  dependencia real (package.json) y va en `experimental.serverComponentsExternalPackages` para Vercel. NO hace
+  recorte de fondo (eso requeriría IA/servicio de pago); el fondo lo pone la foto original.
 
 ## Vercel
 - Team: `flipsuite-es' projects` (id `team_Z3rTsOhJJI24bIJ67MmXAkiH`).
