@@ -20,6 +20,7 @@ const nav = [
   { href: "/admin/paginas", label: "Páginas" },
   { href: "/admin/suscriptores", label: "Suscriptores" },
   { href: "/admin/firma", label: "Firmas" },
+  { href: "/admin/vault", label: "Contraseñas" },
   { href: "/admin/ajustes", label: "Ajustes" },
 ];
 

@@ -1,4 +1,5 @@
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { decryptSecret } from "@/lib/crypto";
 import type {
   Category,
   Coupon,
@@ -10,6 +11,7 @@ import type {
   Subscriber,
   Ticket,
   TicketMessage,
+  VaultEntry,
 } from "@/lib/types";
 
 /** Lecturas del panel (usuario autenticado → RLS permite ver todo). */
@@ -154,4 +156,24 @@ export async function getSubscribers(): Promise<Subscriber[]> {
     .select("*")
     .order("created_at", { ascending: false });
   return (data as Subscriber[]) ?? [];
+}
+
+/* ---------------- Bóveda de contraseñas ---------------- */
+
+export async function getVaultEntries(): Promise<VaultEntry[]> {
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from("vault_entries")
+    .select("*")
+    .order("title", { ascending: true });
+  return ((data as any[]) ?? []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    url: r.url,
+    username: r.username,
+    password: decryptSecret(r.secret_enc || ""),
+    notes: r.notes,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }));
 }

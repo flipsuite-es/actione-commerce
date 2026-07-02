@@ -160,6 +160,18 @@ export interface Subscriber {
   created_at: string;
 }
 
+/** Entrada de la bóveda de contraseñas (password ya descifrado para el admin). */
+export interface VaultEntry {
+  id: string;
+  title: string;
+  url: string | null;
+  username: string | null;
+  password: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string | null;

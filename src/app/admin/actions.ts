@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { BUCKET } from "@/lib/storage";
 import { slugify } from "@/lib/format";
+import { encryptSecret } from "@/lib/crypto";
 
 async function requireAdmin() {
   const supabase = createSupabaseServer();
@@ -327,6 +328,36 @@ export async function loadNotifications(): Promise<{
 export async function markNotificationRead(id: string) {
   const supabase = await requireAdmin();
   await supabase.from("notifications").update({ read: true }).eq("id", id);
+}
+
+/* ---------------- Bóveda de contraseñas ---------------- */
+
+export async function saveVaultEntry(formData: FormData) {
+  const supabase = await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const title = String(formData.get("title") || "").trim();
+  if (!title) return;
+  const record = {
+    title,
+    url: String(formData.get("url") || "").trim() || null,
+    username: String(formData.get("username") || "").trim() || null,
+    secret_enc: encryptSecret(String(formData.get("password") || "")),
+    notes: String(formData.get("notes") || "").trim() || null,
+  };
+  if (id) {
+    const { error } = await supabase.from("vault_entries").update(record).eq("id", id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("vault_entries").insert(record);
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath("/admin/vault");
+}
+
+export async function deleteVaultEntry(id: string) {
+  const supabase = await requireAdmin();
+  await supabase.from("vault_entries").delete().eq("id", id);
+  revalidatePath("/admin/vault");
 }
 
 export async function markAllNotificationsRead() {

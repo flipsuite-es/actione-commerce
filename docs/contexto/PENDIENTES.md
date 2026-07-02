@@ -18,6 +18,9 @@
       (p. ej. `https://oucystudios.vercel.app/auth/callback` y luego el dominio real) para que el enlace de
       confirmación funcione.
 - [ ] Para hacer admin a otra persona: `update public.profiles set role='admin' where email='…';` (por SQL/MCP).
+- [ ] **Gestor de contraseñas — `VAULT_KEY`:** añadir en Vercel → Settings → Environment Variables una `VAULT_KEY`
+      (30+ caracteres aleatorios) y redeploy, para cifrado fuerte de la bóveda. OJO: si se cambia la `VAULT_KEY`
+      después de guardar entradas, las ya guardadas dejarán de descifrarse (habría que reintroducirlas).
 
 ## 🟠 Config de plataformas (deploy YA resuelto por sincronización)
 - [x] ✅ **Deploy funcionando** (2026-07-02): la rama de producción `claude/ecommerce-low-investment-model-ru62lb`
