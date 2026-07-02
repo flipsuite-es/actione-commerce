@@ -38,6 +38,8 @@
 - [ ] Pedir al proveedor el **informe del acero** (níquel/316L) para respaldar el claim "hipoalergénico".
 
 ## 🟢 Mejoras / Fase 2
+- [ ] **(RECORDAR al usuario)** Mejoras de cuenta cliente: sincronizar **favoritos** con la cuenta (ahora son
+      localStorage), **autorrellenar** datos en el checkout si está logueado, y sección de **direcciones de envío**.
 - [ ] (Opcional) Avisar al **cliente por email** cuando el admin responde su ticket. Los avisos del ADMIN
       ya son internos (campanita); esto sería solo para el cliente, si se quiere. Requiere Resend/Brevo.
 - [ ] Anti-spam en el formulario de soporte (rate-limit o captcha) si llega abuso.
