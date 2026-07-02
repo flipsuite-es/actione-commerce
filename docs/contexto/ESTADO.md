@@ -74,8 +74,15 @@ backoffice completos y funcionando.
      **avisa de reflejos** (fotógrafo/móvil/persona en la joya pulida), fondo sucio, desenfoque o mal encuadre, antes de
      publicar. Marca la miniatura con borde rojo + ⚠ y lista los fallos. NO edita la foto (Claude es visión, no genera
      píxeles). Nota de producto: para fotos limpias se recomienda **usar la foto del proveedor** o la técnica de la
-     cartulina blanca con agujero para el objetivo. El borrado automático de reflejos exigiría un servicio de edición
-     externo (coste + riesgo de deformar el acabado espejo) → no implementado por ahora.
+     cartulina blanca con agujero para el objetivo.
+  4. **Borrado de reflejos con IA + auditoría** (`cleanupPhoto` + `src/lib/image-edit.ts`): edita la foto con un servicio
+     externo (**fal.ai / FLUX Kontext**, clave **`FAL_KEY`**) con instrucción conservadora (solo quitar el reflejo;
+     mantener forma/tamaño/color/acabado; sin gemas ni ocultar defectos). Guarda la editada en nuestro Storage y luego
+     **Claude audita** comparando original vs editada: si detecta que se ha alterado el producto, la marca **no segura**.
+     La original NUNCA se borra; en la ficha se muestran las dos lado a lado con el veredicto y **el admin aprueba**
+     («Usar la corregida» / «Quedarme con la original»). Anti-publicidad-engañosa por diseño (triple red: instrucción
+     estricta + auditoría IA + aprobación humana). Sin `FAL_KEY` el botón no aparece. `maxDuration=60` en las páginas de
+     producto (editar+auditar tarda).
 - **Multi-proveedor** (migración **011**): tabla `suppliers` (nombre, contacto, email, teléfono, web, notas, plazo,
   pedido mínimo, activo; RLS solo `is_admin`) + `products.supplier_id` (FK). CRUD en **`/admin/proveedores`**. La ficha
   de producto tiene selector de proveedor + ref. Sembrado **Smile Joyas** como proveedor inicial. Pensado para crecer a

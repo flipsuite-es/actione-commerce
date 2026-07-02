@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { saveProduct, uploadImage, suggestProduct, checkPhoto } from "@/app/admin/actions";
+import {
+  saveProduct,
+  uploadImage,
+  suggestProduct,
+  checkPhoto,
+  cleanupPhoto,
+} from "@/app/admin/actions";
 import type { Category, Product, Supplier } from "@/lib/types";
 
 interface PhotoQc {
@@ -12,20 +18,82 @@ interface PhotoQc {
   note: string;
 }
 
+interface PhotoCleanup {
+  loading?: boolean;
+  cleanedUrl?: string;
+  safe?: boolean;
+  changes?: string[];
+  note?: string;
+  error?: string;
+}
+
 export default function ProductForm({
   product,
   categories,
   suppliers = [],
+  imageEditEnabled = false,
 }: {
   product?: Product;
   categories: Category[];
   suppliers?: Supplier[];
+  imageEditEnabled?: boolean;
 }) {
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   // Control de calidad por foto (reflejos, borrosa, fondo…), por URL.
   const [qc, setQc] = useState<Record<string, PhotoQc>>({});
+  // Borrado de reflejo con IA (compara y audita), por URL original.
+  const [cleanup, setCleanup] = useState<Record<string, PhotoCleanup>>({});
+
+  async function runCleanup(url: string) {
+    setCleanup((prev) => ({ ...prev, [url]: { loading: true } }));
+    try {
+      const r = await cleanupPhoto(url);
+      if (!r.ok) {
+        setCleanup((prev) => ({ ...prev, [url]: { error: r.error } }));
+        return;
+      }
+      setCleanup((prev) => ({
+        ...prev,
+        [url]: {
+          cleanedUrl: r.cleanedUrl,
+          safe: r.safe,
+          changes: r.changes,
+          note: r.note,
+        },
+      }));
+    } catch (err: any) {
+      setCleanup((prev) => ({
+        ...prev,
+        [url]: { error: err?.message || "No se pudo quitar el reflejo." },
+      }));
+    }
+  }
+
+  // Sustituye la foto original por la corregida (el admin lo aprueba).
+  function useCleaned(originalUrl: string, cleanedUrl: string) {
+    setImages((prev) => prev.map((u) => (u === originalUrl ? cleanedUrl : u)));
+    setQc((prev) => {
+      const next = { ...prev };
+      delete next[originalUrl];
+      return next;
+    });
+    setCleanup((prev) => {
+      const next = { ...prev };
+      delete next[originalUrl];
+      return next;
+    });
+    runCheck(cleanedUrl);
+  }
+
+  function dismissCleanup(url: string) {
+    setCleanup((prev) => {
+      const next = { ...prev };
+      delete next[url];
+      return next;
+    });
+  }
 
   async function runCheck(url: string) {
     setQc((prev) => ({
@@ -231,35 +299,122 @@ export default function ProductForm({
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         {aiMsg && <p className="mt-2 text-sm text-muted">{aiMsg}</p>}
 
-        {/* Avisos de control de calidad de foto */}
+        {/* Avisos de control de calidad de foto + borrado de reflejo con IA */}
         {images.some((src) => {
           const c = qc[src];
           return c && !c.checking && (c.reflection || !c.publishable);
         }) && (
-          <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm">
+          <div className="mt-3 space-y-3 rounded border border-red-300 bg-red-50 p-3 text-sm">
             <p className="font-medium text-red-700">Revisa estas fotos antes de publicar:</p>
-            <ul className="mt-1 space-y-1 text-red-700">
-              {images.map((src, i) => {
-                const c = qc[src];
-                if (!c || c.checking || (!c.reflection && c.publishable)) return null;
-                const items = [
-                  ...(c.reflection ? ["se te ve reflejada / sale el móvil"] : []),
-                  ...c.problems.filter(
-                    (p) => !/reflej|móvil|movil|fotograf/i.test(p)
-                  ),
-                ];
-                return (
-                  <li key={src}>
-                    <span className="font-medium">Foto {i + 1}:</span>{" "}
-                    {items.join(" · ") || c.note || "revisar"}
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="mt-2 text-xs text-red-600/80">
-              Consejo: usa la foto del proveedor (sin reflejos) o dispara con una
-              cartulina blanca con un agujero para el objetivo. No es obligatorio,
-              pero una foto limpia vende mucho más.
+            {images.map((src, i) => {
+              const c = qc[src];
+              if (!c || c.checking || (!c.reflection && c.publishable)) return null;
+              const items = [
+                ...(c.reflection ? ["se te ve reflejada / sale el móvil"] : []),
+                ...c.problems.filter((p) => !/reflej|móvil|movil|fotograf/i.test(p)),
+              ];
+              const cl = cleanup[src];
+              return (
+                <div key={src} className="rounded bg-white/60 p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-red-700">
+                    <span>
+                      <span className="font-medium">Foto {i + 1}:</span>{" "}
+                      {items.join(" · ") || c.note || "revisar"}
+                    </span>
+                    {imageEditEnabled && c.reflection && !cl?.cleanedUrl && (
+                      <button
+                        type="button"
+                        onClick={() => runCleanup(src)}
+                        disabled={cl?.loading}
+                        className="btn-outline shrink-0 px-3 py-1 text-xs disabled:opacity-50"
+                      >
+                        {cl?.loading ? "Quitando reflejo…" : "✨ Quitar reflejo con IA"}
+                      </button>
+                    )}
+                  </div>
+
+                  {cl?.error && <p className="mt-1 text-xs text-red-600">{cl.error}</p>}
+
+                  {/* Comparativa original vs corregida (el admin aprueba) */}
+                  {cl?.cleanedUrl && (
+                    <div className="mt-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <figure>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt="original" className="w-full border border-gold/20" />
+                          <figcaption className="mt-1 text-center text-[11px] text-muted">
+                            Original
+                          </figcaption>
+                        </figure>
+                        <figure>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={cl.cleanedUrl}
+                            alt="sin reflejo"
+                            className="w-full border border-gold/20"
+                          />
+                          <figcaption className="mt-1 text-center text-[11px] text-muted">
+                            Sin reflejo (IA)
+                          </figcaption>
+                        </figure>
+                      </div>
+
+                      {cl.safe ? (
+                        <p className="mt-2 text-xs text-emerald-700">
+                          ✓ Auditoría IA: es el mismo producto, solo se ha quitado el
+                          reflejo. Seguro de usar.
+                        </p>
+                      ) : (
+                        <div className="mt-2 text-xs text-red-700">
+                          <p className="font-medium">
+                            ⚠ La auditoría detectó cambios en el producto — no la uses si
+                            altera la pieza:
+                          </p>
+                          {cl.changes && cl.changes.length > 0 && (
+                            <ul className="ml-4 list-disc">
+                              {cl.changes.map((ch, k) => (
+                                <li key={k}>{ch}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                      {cl.note && <p className="mt-1 text-xs text-muted">{cl.note}</p>}
+
+                      <div className="mt-2 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={() => useCleaned(src, cl.cleanedUrl!)}
+                          className={cl.safe ? "btn-gold text-sm" : "btn-outline text-sm"}
+                        >
+                          Usar la corregida
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => dismissCleanup(src)}
+                          className="text-sm text-muted hover:text-gold-3"
+                        >
+                          Quedarme con la original
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => runCleanup(src)}
+                          className="text-sm text-muted hover:text-gold-3"
+                        >
+                          Reintentar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <p className="text-xs text-red-600/80">
+              Consejo: lo más limpio y gratis es usar la foto del proveedor o disparar con
+              una cartulina blanca con un agujero para el objetivo.
+              {imageEditEnabled
+                ? " Si no, prueba a quitar el reflejo con IA (revisa siempre el resultado)."
+                : ""}
             </p>
           </div>
         )}

@@ -7,6 +7,7 @@ import { BUCKET } from "@/lib/storage";
 import { slugify } from "@/lib/format";
 import { encryptSecret } from "@/lib/crypto";
 import { askJSON, askText, imageBlock, BRAND_RULES } from "@/lib/ai";
+import { removeReflection, imageEditConfigured } from "@/lib/image-edit";
 
 async function requireAdmin() {
   const supabase = createSupabaseServer();
@@ -317,6 +318,117 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra):
     problems,
     note: String(r.data.note || ""),
   };
+}
+
+/** Quita el reflejo de una foto con IA y AUDITA el resultado (anti-publicidad
+ *  engañosa): edita → guarda en nuestro Storage → Claude compara original vs
+ *  editada y confirma que es el mismo producto y que solo cambió el reflejo.
+ *  La original NUNCA se borra: el admin decide con las dos delante. */
+export async function cleanupPhoto(imageUrl: string): Promise<
+  | { ok: true; cleanedUrl: string; safe: boolean; changes: string[]; note: string }
+  | { ok: false; error: string }
+> {
+  const supabase = await requireAdmin();
+  if (!imageUrl) return { ok: false, error: "Sin imagen." };
+  if (!imageEditConfigured()) {
+    return {
+      ok: false,
+      error:
+        "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel para activar el borrado de reflejos.",
+    };
+  }
+
+  // 1) Editar: quitar el reflejo con el servicio externo (fal / FLUX Kontext).
+  const edited = await removeReflection(imageUrl);
+  if (!edited.ok) return { ok: false, error: edited.error };
+
+  // 2) Descargar la imagen editada (la URL de fal es temporal), optimizar y
+  //    guardarla en NUESTRO Storage.
+  let cleanedUrl: string;
+  try {
+    const resp = await fetch(edited.data);
+    if (!resp.ok) {
+      return { ok: false, error: `No se pudo descargar la imagen editada (${resp.status}).` };
+    }
+    const inBuf = Buffer.from(await resp.arrayBuffer());
+    let out = inBuf;
+    let contentType = "image/jpeg";
+    let ext = "jpg";
+    try {
+      const sharp = (await import("sharp")).default;
+      out = await sharp(inBuf)
+        .rotate()
+        .resize(1400, 1400, { fit: "cover", position: "centre" })
+        .webp({ quality: 82 })
+        .toBuffer();
+      contentType = "image/webp";
+      ext = "webp";
+    } catch {
+      /* sin procesar */
+    }
+    const path = `products/clean-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, out, { contentType, upsert: false });
+    if (error) return { ok: false, error: error.message };
+    cleanedUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "No se pudo guardar la imagen editada." };
+  }
+
+  // 3) Auditoría anti-engaño: Claude compara original vs editada.
+  const system = `${BRAND_RULES}
+
+Eres el control ANTI-PUBLICIDAD-ENGAÑOSA de Oucy Studios. Te doy DOS fotos del mismo producto de joyería: la primera es la ORIGINAL y la segunda es una versión EDITADA por IA para quitarle el reflejo del fotógrafo.
+Comprueba que la EDITADA muestra EXACTAMENTE el mismo producto real que la original: misma forma, mismo tamaño y proporciones, mismo color y tipo de acabado (un acero color dorado debe verse igual, NO más brillante ni como oro real; un color plata igual), sin gemas añadidas, sin ocultar arañazos o defectos reales de la pieza. Lo ÚNICO que puede haber cambiado es el contenido del reflejo/entorno y quizá el fondo.
+Devuelve EXCLUSIVAMENTE un JSON:
+{"same_product": true, "only_reflection_changed": true, "changes": [], "safe_to_use": true, "note": "..."}
+- "changes": lista breve en español de cualquier diferencia que afecte al PRODUCTO (vacía si solo cambió el reflejo/fondo).
+- "safe_to_use": true solo si es el mismo producto y no hay ningún riesgo de engaño.`;
+
+  const audit = await askJSON<{
+    same_product?: boolean;
+    only_reflection_changed?: boolean;
+    changes?: unknown;
+    safe_to_use?: boolean;
+    note?: string;
+  }>({
+    system,
+    maxTokens: 500,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "ORIGINAL:" },
+          imageBlock(imageUrl),
+          { type: "text", text: "EDITADA:" },
+          imageBlock(cleanedUrl),
+          { type: "text", text: "Devuelve el JSON de auditoría." },
+        ],
+      },
+    ],
+  });
+
+  // Si la auditoría falla (p. ej. sin clave de Claude), devolvemos la imagen
+  // pero SIN verificar (safe=false) para que el admin decida mirándola.
+  if (!audit.ok) {
+    return {
+      ok: true,
+      cleanedUrl,
+      safe: false,
+      changes: ["No se pudo auditar automáticamente; compárala tú antes de usarla."],
+      note: "",
+    };
+  }
+  const changes = Array.isArray(audit.data.changes)
+    ? audit.data.changes.map((c) => String(c)).filter(Boolean).slice(0, 5)
+    : [];
+  const safe =
+    audit.data.same_product === true &&
+    audit.data.safe_to_use === true &&
+    audit.data.only_reflection_changed !== false &&
+    changes.length === 0;
+  return { ok: true, cleanedUrl, safe, changes, note: String(audit.data.note || "") };
 }
 
 /* ---------------- Proveedores ---------------- */

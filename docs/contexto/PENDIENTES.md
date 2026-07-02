@@ -15,9 +15,12 @@
 - [x] Correo a Smile Joyas — enviado por el usuario 2026-07-02.
 
 ## 🔵 Config externa nueva (recomendada, no bloqueante)
-- [ ] **Vercel → `ANTHROPIC_API_KEY`**: activa las **sugerencias de ficha con IA** al subir la foto del producto
-      (autorrelleno de nombre, descripción, material y categoría en `/admin/productos/nuevo`). Sin la clave, el resto
-      del formulario funciona igual y se rellena a mano. Se pone en Vercel → Settings → Environment Variables.
+- [ ] **Vercel → `ANTHROPIC_API_KEY`**: enciende TODA la IA interna (ficha desde la foto, control de calidad de foto,
+      asistente de reposición y auditoría anti-engaño del borrado de reflejos). Sin ella, el backoffice funciona a mano.
+      Se pone en Vercel → Settings → Environment Variables.
+- [ ] **Vercel → `FAL_KEY`** (opcional): activa el **borrado de reflejos con IA** en la ficha de producto (servicio
+      fal.ai / FLUX Kontext; coste por imagen). Sin ella, el botón «Quitar reflejo con IA» no aparece y se usan las
+      alternativas gratis (foto del proveedor / cartulina con agujero). La auditoría del resultado usa `ANTHROPIC_API_KEY`.
 
 ## 🔴 Bloqueante / siguiente paso
 - [x] ✅ **Migración `002_backoffice.sql` APLICADA** (2026-07-02) vía Supabase MCP (conector ya autorizado
@@ -57,8 +60,8 @@
 - [x] ✅ Ficha de producto desde la foto (nombre, descripción, material, categoría, **precio**).
 - [x] ✅ **Asistente de reposición** (`/admin/reposicion`): stock bajo agrupado por proveedor + correo de pedido con IA.
 - [x] ✅ **Control de calidad de foto** (al subir): avisa de reflejos/fondo/enfoque antes de publicar. No edita la foto.
-- [ ] (Opcional) **Borrado automático de reflejos**: requiere servicio de edición IA externo (otra clave + coste por
-      imagen; puede deformar el acabado espejo). Alternativas sin coste: foto del proveedor o cartulina con agujero.
+- [x] ✅ **Borrado de reflejos con IA + auditoría anti-engaño**: edita (fal/FLUX Kontext), Claude audita original vs
+      editada y el admin aprueba (original nunca se pierde). **Requiere `FAL_KEY` en Vercel** (fal.ai; coste por imagen).
 - [ ] **Borrador de respuestas de soporte con IA**: botón «Redactar con IA» en el hilo del ticket (tono de marca).
 - [ ] **Copiloto del panel**: chat interno que responde sobre la tienda (stock bajo, pedidos de la semana, tareas
       pendientes) y redacta textos/correos. (Requiere darle contexto resumido de la DB.)
