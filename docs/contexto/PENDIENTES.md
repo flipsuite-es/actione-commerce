@@ -9,11 +9,15 @@
 - [ ] **SIGUIENTE:** cargar catálogo real por `/admin` → primero **categorías**, luego **productos** con fotos.
       (Requiere que el usuario entre en `/admin` con su email/contraseña de Supabase Auth.)
 
-## 🟠 Config de plataformas (solo el usuario puede tocarlo)
-- [ ] **GitHub → Settings → Branches:** poner `main` como **rama por defecto** del repo.
-- [ ] **Vercel → Project `oucystudios` → Settings → Git:** cambiar la **Production Branch** a `main`
-      (ahora apunta a `claude/ecommerce-low-investment-model-ru62lb`). Sin esto, los push a `main` NO redespliegan.
-- [ ] Tras cambiar lo anterior: avisar a Claude para **borrar las ramas antiguas** `claude/…` del remoto.
+## 🟠 Config de plataformas (deploy YA resuelto por sincronización)
+- [x] ✅ **Deploy funcionando** (2026-07-02): la rama de producción `claude/ecommerce-low-investment-model-ru62lb`
+      (la que Vercel vigila) se sincronizó por *fast-forward* con `main`. Ambas apuntan al mismo commit, así que
+      Vercel redespliega solo. **Regla de trabajo hasta migrar del todo:** hacer push a `main` Y sincronizar la
+      rama de producción (`git push origin main:claude/ecommerce-low-investment-model-ru62lb`) para que despliegue.
+- [ ] (Opcional, cosmético) **Repuntar Vercel/GitHub a `main`** para no depender de la doble-push: los ajustes de
+      panel (Vercel → Settings → Git → Production Branch = `main`; GitHub → Settings → Default branch = `main`) SOLO
+      los puede cambiar el usuario. Claude no tiene herramientas para tocar esos settings. Tras cambiarlos, avisar a
+      Claude para **borrar las ramas antiguas** y quedarnos solo con `main`.
 
 ## 🟡 Para lanzar de verdad
 - [ ] Subir **productos reales** por `/admin/productos` (fotos ya en poder del usuario).

@@ -25,7 +25,7 @@ ADN de Action. Marca, tienda y backoffice propios.
 ## Reglas permanentes (no romper)
 1. **Aislamiento total:** trabaja SOLO en este repo. No toques ni menciones otros proyectos del usuario. Todo (Supabase, Vercel, dominio, cuentas) es dedicado a Oucy.
 2. **No hacer pública la tienda** hasta que el usuario lo diga: el muro de pre-lanzamiento se queda ACTIVO.
-3. **Trabaja en la rama** `main` (rama única y de producción). Commit + push con frecuencia (Vercel redespliega solo). Las ramas antiguas `claude/ecommerce-low-investment-model-ru62lb` y `claude/oucy-studios-context-review-vef7e0` quedaron unificadas en `main` el 2026-07-02; no usarlas.
+3. **Trabaja en la rama** `main`. Commit + push con frecuencia. **OJO con el deploy:** Vercel todavía vigila la rama `claude/ecommerce-low-investment-model-ru62lb`, así que para que redespliegue hay que sincronizarla tras cada push a main: `git push origin main:claude/ecommerce-low-investment-model-ru62lb` (es fast-forward, ambas van a la par). Esto se elimina cuando el usuario repunte Vercel/GitHub a `main` (solo puede hacerlo él en los paneles). La rama antigua `claude/oucy-studios-context-review-vef7e0` quedó unificada en `main` el 2026-07-02; no usarla.
 4. **Nunca commitear secretos** (service_role, contraseñas, `.env.local`). La anon key es pública y vive en las env de Vercel.
 5. **Mantén el contexto al día:** cada vez que cambies algo importante, actualiza `CLAUDE.md` + `docs/contexto/*` y haz push. Es obligatorio.
 6. **Honestidad:** reporta fielmente lo hecho y lo pendiente.
