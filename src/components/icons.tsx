@@ -18,14 +18,16 @@ export const IconBag = (p: SVGProps<SVGSVGElement>) => (
     <path d="M9 8V6a3 3 0 0 1 6 0v2" />
   </svg>
 );
+const HEART_PATH =
+  "M12 20.7C12 20.7 3.75 14.1 3.75 8.7C3.75 5.95 5.85 3.9 8.4 3.9C10.1 3.9 11.4 4.85 12 6.05C12.6 4.85 13.9 3.9 15.6 3.9C18.15 3.9 20.25 5.95 20.25 8.7C20.25 14.1 12 20.7 12 20.7Z";
 export const IconHeart = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
-    <path d="M12 20s-7-4.4-9.2-8.3C1.1 8.5 2.6 5.5 5.7 5.5c1.9 0 3.1 1.1 3.8 2.2.7-1.1 1.9-2.2 3.8-2.2 3.1 0 4.6 3 2.9 6.2C19 15.6 12 20 12 20Z" />
+    <path d={HEART_PATH} />
   </svg>
 );
 export const IconHeartFill = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base({ ...p, fill: "currentColor", stroke: "none" })}>
-    <path d="M12 20s-7-4.4-9.2-8.3C1.1 8.5 2.6 5.5 5.7 5.5c1.9 0 3.1 1.1 3.8 2.2.7-1.1 1.9-2.2 3.8-2.2 3.1 0 4.6 3 2.9 6.2C19 15.6 12 20 12 20Z" />
+    <path d={HEART_PATH} />
   </svg>
 );
 export const IconSearch = (p: SVGProps<SVGSVGElement>) => (

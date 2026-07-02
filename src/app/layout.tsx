@@ -1,7 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://oucystudios.com";
+
+export const viewport: Viewport = {
+  themeColor: "#fbf8f1",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -39,7 +43,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap"
           rel="stylesheet"
         />
-        <link rel="icon" href="/logo.png" />
       </head>
       <body className="font-sans text-ink">{children}</body>
     </html>
