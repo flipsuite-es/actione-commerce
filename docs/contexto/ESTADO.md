@@ -53,7 +53,8 @@ SEO: `/sitemap.xml`, `/robots.txt`, metadata + OG por producto + **JSON-LD (sche
 Legal/UX: **banner de cookies RGPD** (`CookieConsent`, guarda aceptación en localStorage, enlaza a /pagina/privacidad).
 Backoffice extra: **exportar pedidos a CSV** (`/admin/pedidos/export`, con BOM para Excel) · **buscador+filtros** (activos/borradores/stock bajo) en la lista de productos · **moderación de reseñas** (`/admin/resenas`) · **suscriptores** (`/admin/suscriptores` + export CSV) · **generador de firmas de email** (`/admin/firma`): herramienta para que el equipo cree su firma brandeada (tablas + estilos en línea, web-safe) y la copie a Gmail/Outlook/Apple Mail. **4 plantillas** (Clásica, Centrada, Compacta, Con botón CTA) + opciones (eslogan, aviso legal, logo). Sin DB.
 Reseñas: en la ficha de producto (estrellas junto al título + sección de opiniones con formulario; `aggregateRating` en el JSON-LD). Newsletter: captura real de correos (guarda en `subscribers`).
-Favicon propio y cuadrado (`src/app/icon.svg` — anillo dorado con destello) + `apple-icon.png` + `manifest.webmanifest` (PWA instalable).
+Favicon propio y cuadrado (`src/app/icon.svg` — anillo dorado con destello) + `apple-icon.png` + `manifest.webmanifest` (PWA instalable) + **OG image de marca** (`public/og.png`, 1200×630) para previsualización al compartir.
+Favoritos **sincronizados con la cuenta** (migración 009 `wishlist_items`, RLS por usuario; el provider mezcla local+servidor al iniciar sesión). Checkout **autorrellena** datos si hay sesión. Esqueletos de carga en tienda y ficha. Enlace "saltar al contenido" (a11y).
 
 ## Modelo de datos (resumen)
 - `products` (name, slug, description, price, compare_at_price, stock, sku, material, category_id, images[], status active/draft, featured, sort)

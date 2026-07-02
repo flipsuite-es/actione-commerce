@@ -29,9 +29,15 @@ export default async function StoreLayout({
     <ToastProvider>
       <WishlistProvider>
         <CartProvider>
+          <a
+            href="#contenido"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[80] focus:bg-ivory focus:px-4 focus:py-2 focus:text-sm focus:shadow-lift"
+          >
+            Saltar al contenido
+          </a>
           <AnnouncementBar text={settings.announcement || undefined} />
           <SiteHeader />
-          <main className="min-h-[60vh]">{children}</main>
+          <main id="contenido" className="min-h-[60vh]">{children}</main>
           <SiteFooter settings={settings} pages={pages} />
           <CartDrawer
             freeShipThreshold={settings.free_ship_threshold}

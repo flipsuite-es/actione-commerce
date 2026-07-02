@@ -20,9 +20,9 @@ export const metadata: Metadata = {
     description: "Joyería atemporal para cada día.",
     type: "website",
     locale: "es_ES",
-    images: ["/logo.png"],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Oucy Studios" }],
   },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", images: ["/og.png"] },
 };
 
 export default function RootLayout({

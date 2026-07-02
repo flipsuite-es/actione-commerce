@@ -8,7 +8,7 @@
 - [x] ✅ **Cuentas de cliente FUNCIONANDO** (2026-07-02): SMTP con **Brevo** + Redirect URLs configurados. Probado:
       registro → correo de confirmación → enlace → sesión iniciada. Remitente = **hola@oucystudios.com** (dominio
       autenticado en Brevo).
-- [ ] **Mejoras de cuenta** (cuando retomemos): favoritos en la cuenta, autorrelleno en checkout, direcciones de envío.
+- [x] ✅ **Favoritos en la cuenta** y **autorrelleno del checkout** hechos (2026-07-02). Queda: **direcciones de envío**.
 - [x] Ajustes revisados (`/admin/ajustes`) — hecho por el usuario 2026-07-02.
 - [x] Dominio `oucystudios.com` conectado — hecho por el usuario 2026-07-02.
 - [x] Repunte a `main` — el usuario indica que ya está en main (2026-07-02).
@@ -48,8 +48,8 @@
 - [ ] Con la respuesta de **Smile Joyas** (informe de materiales/níquel), afinar claims de calidad.
 
 ## 🟢 Mejoras / Fase 2
-- [ ] **(RECORDAR al usuario)** Mejoras de cuenta cliente: sincronizar **favoritos** con la cuenta (ahora son
-      localStorage), **autorrellenar** datos en el checkout si está logueado, y sección de **direcciones de envío**.
+- [ ] Mejoras de cuenta: **direcciones de envío** guardadas en la cuenta (favoritos sincronizados y autorrelleno del
+      checkout YA hechos 2026-07-02).
 - [ ] (Opcional) Avisar al **cliente por email** cuando el admin responde su ticket. Los avisos del ADMIN
       ya son internos (campanita); esto sería solo para el cliente, si se quiere. Requiere Resend/Brevo.
 - [ ] Anti-spam en el formulario de soporte (rate-limit o captcha) si llega abuso.
