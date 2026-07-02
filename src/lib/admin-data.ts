@@ -9,6 +9,7 @@ import type {
   Product,
   Review,
   Subscriber,
+  Supplier,
   Ticket,
   TicketMessage,
   VaultEntry,
@@ -30,6 +31,23 @@ export async function getProductById(id: string): Promise<Product | null> {
   const supabase = createSupabaseServer();
   const { data } = await supabase.from("products").select("*").eq("id", id).single();
   return (data as Product) ?? null;
+}
+
+/* ---------------- Proveedores ---------------- */
+
+export async function getAllSuppliers(): Promise<Supplier[]> {
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from("suppliers")
+    .select("*")
+    .order("name", { ascending: true });
+  return (data as Supplier[]) ?? [];
+}
+
+export async function getSupplierById(id: string): Promise<Supplier | null> {
+  const supabase = createSupabaseServer();
+  const { data } = await supabase.from("suppliers").select("*").eq("id", id).single();
+  return (data as Supplier) ?? null;
 }
 
 export async function getAllCategories(): Promise<Category[]> {

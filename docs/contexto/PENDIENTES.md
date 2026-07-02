@@ -52,6 +52,17 @@
 - [x] Ajustes revisados · [x] Dominio conectado (2026-07-02, por el usuario).
 - [ ] Con la respuesta de **Smile Joyas** (informe de materiales/níquel), afinar claims de calidad.
 
+## 🤖 AI-first interno (roadmap) — la empresa es AI-first de puertas adentro
+> Base ya montada: capa `src/lib/ai.ts` + `ANTHROPIC_API_KEY`. Añadir funciones nuevas es fácil.
+- [x] ✅ Ficha de producto desde la foto (nombre, descripción, material, categoría, **precio**).
+- [x] ✅ **Asistente de reposición** (`/admin/reposicion`): stock bajo agrupado por proveedor + correo de pedido con IA.
+- [ ] **Borrador de respuestas de soporte con IA**: botón «Redactar con IA» en el hilo del ticket (tono de marca).
+- [ ] **Copiloto del panel**: chat interno que responde sobre la tienda (stock bajo, pedidos de la semana, tareas
+      pendientes) y redacta textos/correos. (Requiere darle contexto resumido de la DB.)
+- [ ] **Resumen diario del negocio** en el Panel: la IA resume pedidos/tickets/stock del día en 3–4 líneas.
+- [ ] **Insights de reseñas**: resumen de opiniones y detección de quejas recurrentes.
+- [ ] (Todas requieren `ANTHROPIC_API_KEY` en Vercel; sin ella el backoffice funciona a mano.)
+
 ## 🟢 Mejoras / Fase 2
 - [ ] Mejoras de cuenta: **direcciones de envío** guardadas en la cuenta (favoritos sincronizados y autorrelleno del
       checkout YA hechos 2026-07-02).

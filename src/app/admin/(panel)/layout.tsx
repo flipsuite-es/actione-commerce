@@ -13,6 +13,8 @@ const nav = [
   { href: "/admin", label: "Panel" },
   { href: "/admin/productos", label: "Productos" },
   { href: "/admin/categorias", label: "Categorías" },
+  { href: "/admin/proveedores", label: "Proveedores" },
+  { href: "/admin/reposicion", label: "Reposición" },
   { href: "/admin/pedidos", label: "Pedidos" },
   { href: "/admin/soporte", label: "Soporte" },
   { href: "/admin/resenas", label: "Reseñas" },

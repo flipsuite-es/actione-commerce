@@ -6,6 +6,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { BUCKET } from "@/lib/storage";
 import { slugify } from "@/lib/format";
 import { encryptSecret } from "@/lib/crypto";
+import { askJSON, askText, imageBlock, BRAND_RULES } from "@/lib/ai";
 
 async function requireAdmin() {
   const supabase = createSupabaseServer();
@@ -71,6 +72,7 @@ export async function saveProduct(formData: FormData) {
     compare_at_price: formData.get("compare_at_price") ? num(formData.get("compare_at_price")) : null,
     stock: Math.round(num(formData.get("stock"))),
     sku,
+    supplier_id: String(formData.get("supplier_id") || "") || null,
     supplier_ref: String(formData.get("supplier_ref") || "").trim() || null,
     material: String(formData.get("material") || "") || null,
     category_id: String(formData.get("category_id") || "") || null,
@@ -198,108 +200,141 @@ export async function suggestProduct(
   await requireAdmin();
   if (!imageUrl) return { ok: false, error: "Sube una foto primero." };
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return {
-      ok: false,
-      error:
-        "Falta ANTHROPIC_API_KEY en el servidor. Añádela en Vercel (Settings → Environment Variables) para activar las sugerencias con IA.",
-    };
-  }
-
   const nombresCategorias = categories.map((c) => c.name);
-  const system = `Eres el asistente de catálogo de Oucy Studios, una marca de joyería de acero inoxidable (elegante, atemporal). Redactas fichas de producto a partir de una foto.
+  const system = `${BRAND_RULES}
 
-REGLAS INNEGOCIABLES (publicidad no engañosa — las piezas son de proveedor):
-- El material es SIEMPRE "Acero inoxidable". Nunca inventes plata de ley, oro, plata esterlina, latón, etc.
-- El acabado puede describirse como "color plata" o "color dorado" (es solo el color del acero). PROHIBIDO decir "oro", "bañado en oro", "baño de oro", "chapado", "oro de Xk", "PVD de oro", "plata de ley": sería falso.
-- PROHIBIDO afirmar "hipoalergénico", "apto para piel sensible" o "sin níquel": no está certificado.
-- No inventes medidas, peso, quilates ni materiales de piedras si no son evidentes. Si hay una piedra/circonita visible, puedes decir "con circonita" solo si es claramente eso; si dudas, no lo menciones.
-- Tono de MARCA, elegante y sobrio. Nada de spam de características ("no se oxida", "resistente al agua"...). Describe la pieza y para qué momento es, con gusto.
-- Español de España. Nombre corto y bonito (2–4 palabras). Descripción de 1–2 frases.
+Eres el asistente de catálogo de Oucy Studios. A partir de una foto de una joya, redactas su ficha.
+- No inventes medidas, peso, quilates ni materiales de piedras si no son evidentes. Si hay una circonita claramente visible puedes mencionarla; si dudas, no.
+- Nombre corto y bonito (2–4 palabras). Descripción de 1–2 frases.
 
-PRECIO (orientativo, en EUROS): propón un **precio de venta** coherente con una marca de bijouterie de acero inoxidable elegante pero accesible (rango habitual 15–45 €; piezas más elaboradas hasta ~60 €). Redondea a un precio bonito acabado en 5 o 9 (p. ej. 19.95, 24.95, 29.95). Opcionalmente propón un "precio antes" (compare_at) un poco mayor si la pieza da margen a mostrar oferta; si no, déjalo en null. Es solo una sugerencia editable.
+PRECIO (orientativo, EUROS): propón un precio de venta coherente con bijouterie de acero elegante pero accesible (rango habitual 15–45 €; piezas más elaboradas hasta ~60 €). Redondea a precio bonito acabado en 5 o 9 (p. ej. 24.95). Opcionalmente un "precio antes" (compare_at) algo mayor para mostrar oferta; si no, null.
 
-Devuelve tu respuesta EXCLUSIVAMENTE como un objeto JSON válido (sin markdown, sin texto extra) con esta forma exacta:
-{"name": "...", "description": "...", "material": "Acero inoxidable", "category": "...", "price": 24.95, "compare_at_price": null}
-El campo "category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): ${JSON.stringify(nombresCategorias)}.
-"price" es un número (euros) y "compare_at_price" es un número o null.`;
+Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra) con esta forma exacta:
+{"name":"...","description":"...","material":"Acero inoxidable","category":"...","price":24.95,"compare_at_price":null}
+"category" debe ser uno EXACTO de esta lista (o "" si ninguno encaja): ${JSON.stringify(nombresCategorias)}.`;
 
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-opus-4-8",
-        max_tokens: 1024,
-        system,
-        messages: [
+  const r = await askJSON<{
+    name?: string;
+    description?: string;
+    category?: string;
+    price?: number | string | null;
+    compare_at_price?: number | string | null;
+  }>({
+    system,
+    maxTokens: 1024,
+    messages: [
+      {
+        role: "user",
+        content: [
+          imageBlock(imageUrl),
           {
-            role: "user",
-            content: [
-              { type: "image", source: { type: "url", url: imageUrl } },
-              {
-                type: "text",
-                text: "Analiza esta joya y devuelve el JSON con la ficha sugerida siguiendo las reglas.",
-              },
-            ],
+            type: "text",
+            text: "Analiza esta joya y devuelve el JSON con la ficha sugerida siguiendo las reglas.",
           },
         ],
-      }),
-    });
+      },
+    ],
+  });
+  if (!r.ok) return { ok: false, error: r.error };
 
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      return {
-        ok: false,
-        error: `La IA no respondió (${res.status}). ${detail.slice(0, 180)}`,
-      };
-    }
+  const parsed = r.data;
+  const catMatch = categories.find(
+    (c) => c.name.toLowerCase() === String(parsed.category || "").toLowerCase()
+  );
+  const toPrice = (v: unknown): number | null => {
+    const n = parseFloat(String(v ?? "").replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+  };
 
-    const data = (await res.json()) as {
-      content?: { type: string; text?: string }[];
-    };
-    const text =
-      data.content?.find((b) => b.type === "text")?.text?.trim() || "";
-    const jsonStr = text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-    const start = jsonStr.indexOf("{");
-    const end = jsonStr.lastIndexOf("}");
-    if (start === -1 || end === -1) {
-      return { ok: false, error: "La IA no devolvió un formato válido." };
-    }
-    const parsed = JSON.parse(jsonStr.slice(start, end + 1)) as {
-      name?: string;
-      description?: string;
-      material?: string;
-      category?: string;
-      price?: number | string | null;
-      compare_at_price?: number | string | null;
-    };
+  return {
+    ok: true,
+    name: String(parsed.name || "").trim(),
+    description: String(parsed.description || "").trim(),
+    material: "Acero inoxidable",
+    category: catMatch?.name ?? "",
+    price: toPrice(parsed.price),
+    compare_at_price: toPrice(parsed.compare_at_price),
+  };
+}
 
-    const catMatch = categories.find(
-      (c) => c.name.toLowerCase() === String(parsed.category || "").toLowerCase()
-    );
-    const toPrice = (v: unknown): number | null => {
-      const n = parseFloat(String(v ?? "").replace(",", "."));
-      return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
-    };
+/* ---------------- Proveedores ---------------- */
 
-    return {
-      ok: true,
-      name: String(parsed.name || "").trim(),
-      description: String(parsed.description || "").trim(),
-      material: "Acero inoxidable",
-      category: catMatch?.name ?? "",
-      price: toPrice(parsed.price),
-      compare_at_price: toPrice(parsed.compare_at_price),
-    };
-  } catch (err: any) {
-    return { ok: false, error: err?.message || "Error al llamar a la IA." };
+export async function saveSupplier(formData: FormData) {
+  const supabase = await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  if (!name) return;
+  const numOrNull = (v: FormDataEntryValue | null) => {
+    const s = String(v ?? "").trim();
+    if (!s) return null;
+    const n = parseFloat(s.replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  };
+  const record = {
+    name,
+    contact_name: String(formData.get("contact_name") || "").trim() || null,
+    email: String(formData.get("email") || "").trim() || null,
+    phone: String(formData.get("phone") || "").trim() || null,
+    website: String(formData.get("website") || "").trim() || null,
+    notes: String(formData.get("notes") || "").trim() || null,
+    lead_time_days: numOrNull(formData.get("lead_time_days")),
+    min_order: numOrNull(formData.get("min_order")),
+    active: formData.get("active") === "on",
+  };
+  if (id) {
+    const { error } = await supabase.from("suppliers").update(record).eq("id", id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("suppliers").insert(record);
+    if (error) throw new Error(error.message);
   }
+  revalidatePath("/admin/proveedores");
+  redirect("/admin/proveedores");
+}
+
+export async function deleteSupplier(id: string) {
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("suppliers").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/proveedores");
+}
+
+/** Redacta con IA un correo de reposición para un proveedor a partir de las
+ *  piezas con stock bajo. El admin lo revisa/copia y lo envía. */
+export async function draftRestock(input: {
+  supplierName: string;
+  contactName?: string | null;
+  items: { name: string; ref: string | null; stock: number }[];
+}): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  if (!input.items.length) return { ok: false, error: "No hay piezas que reponer." };
+
+  const list = input.items
+    .map(
+      (i) =>
+        `- ${i.name}${i.ref ? ` (ref. ${i.ref})` : ""} — quedan ${i.stock} uds`
+    )
+    .join("\n");
+  const contact = input.contactName ? ` (contacto: ${input.contactName})` : "";
+
+  const system = `Eres el equipo de compras de Oucy Studios, una marca de joyería. Redactas un correo BREVE, cordial y profesional a un PROVEEDOR para reponer stock (nuevo pedido). Español de España.
+- Preséntate como "Oucy Studios". Firma como "Un saludo,\\nEquipo de Oucy Studios".
+- Empieza con "Asunto: ..." en la primera línea.
+- Pide disponibilidad, precio actualizado y plazo de entrega de las piezas listadas. No inventes cantidades exactas si no se indican; puedes proponer reponer la pieza y preguntar por mínimos.
+- Tono humano y directo, sin florituras. Devuelve SOLO el texto del correo (sin comillas ni explicación).`;
+
+  const r = await askText({
+    system,
+    maxTokens: 700,
+    messages: [
+      {
+        role: "user",
+        content: `Proveedor: ${input.supplierName}${contact}.\nPiezas con stock bajo a reponer:\n${list}`,
+      },
+    ],
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, text: r.data };
 }
 
 /* ---------------- Categorías ---------------- */

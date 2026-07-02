@@ -48,9 +48,28 @@ backoffice completos y funcionando.
 - **SKU automático (control propio)** (migración **010** + `saveProduct`): el SKU lo asigna el sistema, no se teclea.
   Al crear un producto sin SKU se genera correlativo **`OUCY-0001`, `OUCY-0002`…** (max+1 de los ya existentes con ese
   prefijo). En la ficha el campo SKU es de solo lectura («Se asignará automáticamente»). Al editar se conserva el SKU.
-- **Ref. de proveedor** (migración **010**, columna `products.supplier_ref`): campo manual de la ficha con el código de
-  la pieza en el catálogo de **Smile Joyas**, para reponer stock / hacer nuevos pedidos. Uso interno (no se muestra en
+- **Ref. de proveedor** (migración **010**, columna `products.supplier_ref`): campo de la ficha con el código de
+  la pieza en el catálogo del proveedor, para reponer stock / hacer nuevos pedidos. Uso interno (no se muestra en
   la tienda). Aparece bajo el nombre en la lista `/admin/productos` (junto al SKU) y el buscador filtra también por él.
+
+## Empresa AI-first (interno) — arquitectura
+> Oucy es **AI-first de puertas adentro** (operativa/backoffice), NO en la tienda de cara al cliente. Toda la IA interna
+> se apoya en una capa común y respeta las reglas de marca/honestidad.
+- **Capa de IA central** (`src/lib/ai.ts`): único punto para el modelo (`claude-opus-4-8`), la clave, el manejo de
+  errores y la extracción de JSON. Expone `askText`, `askJSON`, `imageBlock`, `aiConfigured()` y **`BRAND_RULES`** (las
+  reglas de honestidad/marca que hereda cualquier texto público). Llama por `fetch` a la API de Anthropic (sin SDK
+  nuevo). Requiere **`ANTHROPIC_API_KEY`** en Vercel; si falta, cada función devuelve `{ok:false,error}` y el backoffice
+  sigue a mano (nunca bloquea). Añadir nuevas funciones de IA = una función que llama a esta capa.
+- **Funciones de IA activas:**
+  1. **Ficha de producto desde la foto** (`suggestProduct`): nombre, descripción, material, categoría y precio.
+  2. **Asistente de reposición** (`/admin/reposicion` + `draftRestock`): agrupa las piezas con stock bajo por proveedor
+     y **redacta el correo de pedido** a cada proveedor; el admin lo edita, copia o abre en el correo (`mailto`).
+- **Multi-proveedor** (migración **011**): tabla `suppliers` (nombre, contacto, email, teléfono, web, notas, plazo,
+  pedido mínimo, activo; RLS solo `is_admin`) + `products.supplier_id` (FK). CRUD en **`/admin/proveedores`**. La ficha
+  de producto tiene selector de proveedor + ref. Sembrado **Smile Joyas** como proveedor inicial. Pensado para crecer a
+  más proveedores sin tocar esquema.
+- **Roadmap AI-first** (siguiente, ver PENDIENTES): borrador de respuestas de soporte con IA, copiloto del panel
+  (preguntar por stock/pedidos/tareas), resumen diario del negocio, e insights de reseñas.
 
 ## Vercel
 - Team: `flipsuite-es' projects` (id `team_Z3rTsOhJJI24bIJ67MmXAkiH`).

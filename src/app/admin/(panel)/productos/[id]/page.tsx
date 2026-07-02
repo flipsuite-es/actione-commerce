@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import ProductForm from "@/components/admin/ProductForm";
-import { getProductById, getAllCategories } from "@/lib/admin-data";
+import { getProductById, getAllCategories, getAllSuppliers } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
 
@@ -9,15 +9,16 @@ export default async function EditProductPage({
 }: {
   params: { id: string };
 }) {
-  const [product, categories] = await Promise.all([
+  const [product, categories, suppliers] = await Promise.all([
     getProductById(params.id),
     getAllCategories(),
+    getAllSuppliers(),
   ]);
   if (!product) notFound();
   return (
     <div>
       <h1 className="mb-6 font-serif text-3xl">Editar producto</h1>
-      <ProductForm product={product} categories={categories} />
+      <ProductForm product={product} categories={categories} suppliers={suppliers} />
     </div>
   );
 }

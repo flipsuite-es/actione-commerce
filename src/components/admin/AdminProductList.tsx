@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import type { Product } from "@/lib/types";
+import type { Product, Supplier } from "@/lib/types";
 import { euro } from "@/lib/format";
 import { adjustStock, deleteProduct, duplicateProduct, toggleProduct } from "@/app/admin/actions";
 
@@ -15,10 +15,20 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "low", label: "Stock bajo" },
 ];
 
-export default function AdminProductList({ products }: { products: Product[] }) {
+export default function AdminProductList({
+  products,
+  suppliers = [],
+}: {
+  products: Product[];
+  suppliers?: Supplier[];
+}) {
   const [pending, start] = useTransition();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const supplierName = useMemo(
+    () => new Map(suppliers.map((s) => [s.id, s.name])),
+    [suppliers]
+  );
 
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -101,12 +111,18 @@ export default function AdminProductList({ products }: { products: Product[] }) 
                     >
                       {p.name}
                     </Link>
-                    {(p.sku || p.supplier_ref) && (
+                    {(p.sku || p.supplier_ref || p.supplier_id) && (
                       <div className="text-[11px] text-muted">
                         {p.sku && <span>{p.sku}</span>}
+                        {p.supplier_id && supplierName.get(p.supplier_id) && (
+                          <span>
+                            {p.sku ? " · " : ""}
+                            {supplierName.get(p.supplier_id)}
+                          </span>
+                        )}
                         {p.supplier_ref && (
                           <span>
-                            {p.sku ? " · " : ""}Prov: {p.supplier_ref}
+                            {p.sku || p.supplier_id ? " · " : ""}Ref: {p.supplier_ref}
                           </span>
                         )}
                       </div>

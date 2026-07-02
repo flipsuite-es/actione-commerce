@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { saveProduct, uploadImage, suggestProduct } from "@/app/admin/actions";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, Supplier } from "@/lib/types";
 
 export default function ProductForm({
   product,
   categories,
+  suppliers = [],
 }: {
   product?: Product;
   categories: Category[];
+  suppliers?: Supplier[];
 }) {
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [uploading, setUploading] = useState(false);
@@ -207,7 +209,23 @@ export default function ProductForm({
             />
           </div>
           <div>
-            <label className="label">Ref. proveedor (Smile Joyas)</label>
+            <label className="label">Proveedor</label>
+            <select
+              name="supplier_id"
+              className="input"
+              defaultValue={product?.supplier_id ?? ""}
+            >
+              <option value="">— Sin asignar —</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {!s.active ? " (inactivo)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Ref. del proveedor</label>
             <input
               name="supplier_ref"
               className="input"

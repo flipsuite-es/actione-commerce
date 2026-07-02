@@ -17,6 +17,7 @@ export interface Product {
   compare_at_price: number | null;
   stock: number;
   sku: string | null;
+  supplier_id: string | null;
   supplier_ref: string | null;
   material: string | null;
   category_id: string | null;
@@ -24,6 +25,21 @@ export interface Product {
   status: ProductStatus;
   featured: boolean;
   sort: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  notes: string | null;
+  lead_time_days: number | null;
+  min_order: number | null;
+  active: boolean;
   created_at: string;
   updated_at: string;
 }

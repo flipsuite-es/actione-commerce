@@ -101,7 +101,7 @@ export default async function DashboardPage() {
         </Panel>
 
         {/* Stock bajo */}
-        <Panel title="Stock bajo">
+        <Panel title="Stock bajo" action={{ href: "/admin/reposicion", label: "Reponer" }}>
           {lowStock.length === 0 ? (
             <Empty>Todo con stock suficiente. ✦</Empty>
           ) : (

@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { getAllProducts } from "@/lib/admin-data";
+import { getAllProducts, getAllSuppliers } from "@/lib/admin-data";
 import AdminProductList from "@/components/admin/AdminProductList";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage() {
-  const products = await getAllProducts();
+  const [products, suppliers] = await Promise.all([
+    getAllProducts(),
+    getAllSuppliers(),
+  ]);
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -17,7 +20,7 @@ export default async function AdminProductsPage() {
       <p className="mb-6 mt-1 text-muted">
         {products.length} producto{products.length === 1 ? "" : "s"}
       </p>
-      <AdminProductList products={products} />
+      <AdminProductList products={products} suppliers={suppliers} />
     </div>
   );
 }
