@@ -1080,15 +1080,113 @@ async function analyzePhoto(buf: Buffer): Promise<{
   return { p95, clip: clip / n, bright: { r: br, g: bg, b: bb } };
 }
 
-/** Mejora la CALIDAD de la foto sin tocar el producto: AUTO-REVELADO adaptativo
- *  (mide y corrige) — si está muy brillante/quemada la BAJA, si está oscura la
- *  sube, neutraliza la dominante de color (balance de blancos), y da un punto de
- *  contraste, saturación y nitidez. Procesado determinista (sharp), NO IA: son
- *  ajustes GLOBALES de tono/color, no inventa píxeles ni cambia el producto →
- *  nunca es publicidad engañosa. Sin claves, sin coste. */
+interface EnhanceParams {
+  exp: number; // multiplicador de exposición (0.7–1.3)
+  rMul: number; // balance de blancos por canal (0.9–1.12)
+  gMul: number;
+  bMul: number;
+  c: number; // contraste (1.0–1.12)
+  sat: number; // saturación (0.96–1.14)
+  sigma: number; // nitidez (0.4–1.5)
+  note: string;
+}
+
+/** Parámetros de revelado a partir SOLO de la medición (fallback sin IA). */
+function paramsFromStats(a: {
+  p95: number;
+  clip: number;
+  bright: { r: number; g: number; b: number };
+}): EnhanceParams {
+  const wref = Math.max(a.bright.r, a.bright.g, a.bright.b);
+  const wb = (v: number) => Math.max(0.9, Math.min(1.12, wref / Math.max(1, v)));
+  let exp = 244 / Math.max(1, a.p95);
+  if (a.clip > 0.5) exp = Math.min(exp, 0.82);
+  else if (a.clip > 0.25) exp = Math.min(exp, 0.9);
+  exp = Math.max(0.7, Math.min(1.3, exp));
+  return {
+    exp,
+    rMul: wb(a.bright.r),
+    gMul: wb(a.bright.g),
+    bMul: wb(a.bright.b),
+    c: 1.05,
+    sat: 1.06,
+    sigma: 0.8,
+    note: "Ajuste medido (exposición, balance de blancos, contraste y nitidez).",
+  };
+}
+
+/** Claude MIRA la foto (con las medidas como contexto) y decide el revelado. */
+async function paramsFromAI(
+  base: Buffer,
+  a: { p95: number; clip: number; bright: { r: number; g: number; b: number } },
+): Promise<EnhanceParams | null> {
+  const system = `Eres un RETOCADOR profesional de fotografía de producto (joyería). Miras una foto y decides ajustes GLOBALES suaves para que se vea profesional, como en un catálogo, SIN alterar el producto (solo tono y color de toda la imagen).
+Contexto medido de esta foto (0–255): luminancia p95 = ${a.p95.toFixed(0)} (cuánto brillan las zonas más claras; ~248 es blanco limpio, >252 con mucho "clip" = quemada), % quemado = ${(a.clip * 100).toFixed(0)}%, color medio de las luces = R${a.bright.r.toFixed(0)} G${a.bright.g.toFixed(0)} B${a.bright.b.toFixed(0)} (si un canal domina, hay dominante de color).
+Devuelve EXCLUSIVAMENTE un JSON con estos campos (números en los rangos indicados; 0 = sin cambio):
+{"exposure": <-1..1, negativo si está muy brillante/quemada, positivo si está oscura>,
+ "warmth": <-1..1, negativo para enfriar si hay dominante cálida/amarilla, positivo para calentar si está fría/azulada>,
+ "tint": <-1..1, negativo si hay dominante verdosa, positivo si magenta>,
+ "contrast": <0..1, cuánto contraste añadir>,
+ "saturation": <0..1, 0.5 = neutro; <0.5 desatura, >0.5 satura un poco>,
+ "sharpen": <0..1, más si la foto está algo blanda>,
+ "note": "una frase muy breve en español de qué has corregido"}
+Sé SUAVE y natural (fotografía real, no filtro). Si la foto ya está bien, devuelve valores cercanos a 0 (y saturation 0.5).`;
+
+  const r = await askJSON<{
+    exposure?: number | string;
+    warmth?: number | string;
+    tint?: number | string;
+    contrast?: number | string;
+    saturation?: number | string;
+    sharpen?: number | string;
+    note?: string;
+  }>({
+    system,
+    maxTokens: 300,
+    messages: [
+      {
+        role: "user",
+        content: [
+          imageBlockFromBuffer(base, "image/webp"),
+          { type: "text", text: "Analiza la foto y devuelve el JSON de ajustes." },
+        ],
+      },
+    ],
+  });
+  if (!r.ok) return null;
+  const num = (v: unknown, def = 0) => {
+    const n = parseFloat(String(v ?? ""));
+    return Number.isFinite(n) ? n : def;
+  };
+  const cl = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const exposure = cl(num(r.data.exposure), -1, 1);
+  const warmth = cl(num(r.data.warmth), -1, 1);
+  const tint = cl(num(r.data.tint), -1, 1);
+  const contrast = cl(num(r.data.contrast), 0, 1);
+  const saturation = cl(num(r.data.saturation, 0.5), 0, 1);
+  const sharpen = cl(num(r.data.sharpen, 0.4), 0, 1);
+  return {
+    exp: cl(1 + exposure * 0.28, 0.7, 1.3),
+    rMul: cl(1 + warmth * 0.05, 0.9, 1.12),
+    gMul: cl(1 - tint * 0.04, 0.9, 1.12),
+    bMul: cl(1 - warmth * 0.05, 0.9, 1.12),
+    c: cl(1 + contrast * 0.1, 1.0, 1.12),
+    sat: cl(0.98 + saturation * 0.16, 0.96, 1.14),
+    sigma: cl(0.4 + sharpen * 1.1, 0.4, 1.5),
+    note: String(r.data.note || "").slice(0, 160) || "Revelado con IA.",
+  };
+}
+
+/** Mejora la CALIDAD de la foto sin tocar el producto. Claude MIRA la foto y
+ *  decide el revelado (exposición, balance de blancos, contraste, saturación,
+ *  nitidez) — si está muy brillante la baja, si está oscura la sube, corrige la
+ *  dominante de color; y esos ajustes se aplican con procesado determinista
+ *  (sharp): ajustes GLOBALES de tono/color, NO inventa píxeles ni cambia el
+ *  producto → nunca es publicidad engañosa. La mirada de IA cuesta ~1-2 cts; si
+ *  falta ANTHROPIC_API_KEY o falla, cae al análisis medido (gratis). */
 export async function enhancePhoto(
   imageUrl: string,
-): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; url: string; note: string } | { ok: false; error: string }> {
   const supabase = await requireAdmin();
   if (!imageUrl) return { ok: false, error: "Sin imagen." };
   try {
@@ -1102,24 +1200,19 @@ export async function enhancePhoto(
       .webp({ quality: 92 })
       .toBuffer();
 
-    const a = await analyzePhoto(base);
-    // Balance de blancos: llevar las luces altas hacia gris neutro (topes suaves).
-    const wref = Math.max(a.bright.r, a.bright.g, a.bright.b);
-    const wb = (v: number) => Math.max(0.9, Math.min(1.12, wref / Math.max(1, v)));
-    const wr = wb(a.bright.r), wg = wb(a.bright.g), wbb = wb(a.bright.b);
-    // Exposición: llevar el p95 hacia ~244. Si hay quemado, tirar hacia abajo.
-    let exp = 244 / Math.max(1, a.p95);
-    if (a.clip > 0.5) exp = Math.min(exp, 0.82);
-    else if (a.clip > 0.25) exp = Math.min(exp, 0.9);
-    exp = Math.max(0.7, Math.min(1.3, exp));
-    // Contraste suave, COMBINADO con exposición+WB en un ÚNICO linear (sharp
-    // solo aplica el último .linear(): hay que fundirlos).
-    const c = 1.05;
-    const off = 128 * (1 - c);
+    const stats = await analyzePhoto(base);
+    // Claude decide viendo la foto; si no hay clave o falla, medición pura.
+    const p = (aiConfigured() ? await paramsFromAI(base, stats) : null) ?? paramsFromStats(stats);
+
+    // Todo fundido en UN linear (sharp solo aplica el último .linear()).
+    const off = 128 * (1 - p.c);
     const out = await sharp(base)
-      .linear([c * wr * exp, c * wg * exp, c * wbb * exp], [off, off, off])
-      .modulate({ saturation: 1.06 })
-      .sharpen({ sigma: 0.8 })
+      .linear(
+        [p.c * p.rMul * p.exp, p.c * p.gMul * p.exp, p.c * p.bMul * p.exp],
+        [off, off, off],
+      )
+      .modulate({ saturation: p.sat })
+      .sharpen({ sigma: p.sigma })
       .webp({ quality: 90 })
       .toBuffer();
 
@@ -1129,7 +1222,7 @@ export async function enhancePhoto(
       .upload(path, out, { contentType: "image/webp", upsert: false });
     if (error) return { ok: false, error: error.message };
     const url = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-    return { ok: true, url };
+    return { ok: true, url, note: p.note };
   } catch (err: any) {
     return { ok: false, error: err?.message || "No se pudo mejorar la foto." };
   }

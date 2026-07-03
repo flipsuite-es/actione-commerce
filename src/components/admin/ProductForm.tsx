@@ -306,9 +306,9 @@ export default function ProductForm({
     });
   }
 
-  // Mejora de calidad (luz/contraste/nitidez), determinista, por URL original.
+  // Mejora de calidad (auto-revelado), por URL original.
   const [enhance, setEnhance] = useState<
-    Record<string, { loading?: boolean; url?: string; error?: string }>
+    Record<string, { loading?: boolean; url?: string; note?: string; error?: string }>
   >({});
 
   async function runEnhance(url: string) {
@@ -325,7 +325,7 @@ export default function ProductForm({
                 : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.",
           },
         }));
-      else setEnhance((prev) => ({ ...prev, [url]: { url: r.url } }));
+      else setEnhance((prev) => ({ ...prev, [url]: { url: r.url, note: r.note } }));
     } catch (err: any) {
       setEnhance((prev) => ({
         ...prev,
@@ -617,7 +617,7 @@ export default function ProductForm({
         {/* Mejorar calidad (luz/contraste/nitidez): siempre disponible, sin claves */}
         {images.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span>✨ Mejorar calidad (gratis: corrige luz, color y nitidez):</span>
+            <span>✨ Mejorar calidad (la IA revela la foto, ~1-2 cts):</span>
             {images.map((src, i) =>
               enhance[src]?.url ? null : (
                 <button
@@ -663,11 +663,15 @@ export default function ProductForm({
                   <figcaption className="mt-1 text-center text-[11px] text-muted">Después</figcaption>
                 </figure>
               </div>
-              <p className="mt-2 text-xs text-muted">
-                Auto-revelado: mide la foto y corrige la exposición (si está muy
-                brillante la baja, si está oscura la sube), neutraliza el color y da un
-                punto de contraste y nitidez. Ajuste global (sin IA, sin coste): no
-                cambia forma, color ni acabado del producto.
+              {en.note && (
+                <p className="mt-2 text-xs text-ink-soft">
+                  <span className="font-medium">La IA vio:</span> {en.note}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted">
+                La IA mira la foto y decide el revelado (exposición, color, contraste,
+                nitidez); se aplica con ajuste global de tono/color. No inventa píxeles
+                ni cambia forma, color o acabado del producto.
               </p>
               <div className="mt-2 flex flex-wrap gap-3">
                 <button
