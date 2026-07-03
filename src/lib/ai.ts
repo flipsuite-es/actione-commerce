@@ -30,7 +30,12 @@ REGLAS INNEGOCIABLES (publicidad no engañosa — las piezas son de proveedor, N
 - No digas "diseñado por nosotros", "hecho a mano", "hecho en España" ni nada sobre fabricación propia.
 - Nada de spam de características ("no se oxida", "resistente al agua"…). Habla de la pieza y del momento para el que es, con elegancia.`;
 
-export type AiImageBlock = { type: "image"; source: { type: "url"; url: string } };
+export type AiImageBlock = {
+  type: "image";
+  source:
+    | { type: "url"; url: string }
+    | { type: "base64"; media_type: string; data: string };
+};
 export type AiTextBlock = { type: "text"; text: string };
 export type AiBlock = AiTextBlock | AiImageBlock;
 export type AiMessage = { role: "user" | "assistant"; content: string | AiBlock[] };
@@ -47,6 +52,18 @@ interface AskOpts {
 
 export function imageBlock(url: string): AiImageBlock {
   return { type: "image", source: { type: "url", url } };
+}
+
+/** Imagen embebida en base64: evita que la API tenga que descargar la URL
+ *  (menos latencia y un punto de fallo menos). Límite API: ~5 MB por imagen. */
+export function imageBlockFromBuffer(
+  buf: Buffer,
+  mediaType = "image/webp",
+): AiImageBlock {
+  return {
+    type: "image",
+    source: { type: "base64", media_type: mediaType, data: buf.toString("base64") },
+  };
 }
 
 async function callMessages(opts: AskOpts): Promise<AiResult<string>> {
@@ -72,8 +89,18 @@ async function callMessages(opts: AskOpts): Promise<AiResult<string>> {
         ...(opts.system ? { system: opts.system } : {}),
         messages: opts.messages,
       }),
+      // Timeout propio: mejor un error claro que agotar el presupuesto de la
+      // función (60 s) y morir con un fallo opaco.
+      signal: AbortSignal.timeout(25_000),
     });
     if (!res.ok) {
+      if (res.status === 429 || res.status === 529) {
+        return {
+          ok: false,
+          error:
+            "La IA está saturada ahora mismo (límite de peticiones). Espera unos segundos y reintenta.",
+        };
+      }
       const detail = await res.text().catch(() => "");
       return {
         ok: false,
@@ -92,6 +119,9 @@ async function callMessages(opts: AskOpts): Promise<AiResult<string>> {
     if (!text) return { ok: false, error: "La IA devolvió una respuesta vacía." };
     return { ok: true, data: text };
   } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+      return { ok: false, error: "La IA tardó demasiado en responder. Reintenta." };
+    }
     return { ok: false, error: err?.message || "Error al llamar a la IA." };
   }
 }
@@ -101,21 +131,41 @@ export async function askText(opts: AskOpts): Promise<AiResult<string>> {
   return callMessages(opts);
 }
 
+/** Extrae el primer objeto JSON balanceado del texto (tolera texto alrededor,
+ *  vallas ``` y llaves dentro de strings). */
+function extractJsonObject(text: string): string | null {
+  const cleaned = text.replace(/```(?:json)?/gi, "").trim();
+  const start = cleaned.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+    } else if (ch === '"') inStr = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return cleaned.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 /** Respuesta estructurada: extrae y valida un objeto JSON de la salida. */
 export async function askJSON<T>(opts: AskOpts): Promise<AiResult<T>> {
   const r = await callMessages(opts);
   if (!r.ok) return r;
-  const cleaned = r.data
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1) {
+  const jsonStr = extractJsonObject(r.data);
+  if (!jsonStr) {
     return { ok: false, error: "La IA no devolvió un formato JSON válido." };
   }
   try {
-    return { ok: true, data: JSON.parse(cleaned.slice(start, end + 1)) as T };
+    return { ok: true, data: JSON.parse(jsonStr) as T };
   } catch {
     return { ok: false, error: "No se pudo interpretar la respuesta de la IA." };
   }

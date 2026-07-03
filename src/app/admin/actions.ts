@@ -6,8 +6,17 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { BUCKET } from "@/lib/storage";
 import { slugify } from "@/lib/format";
 import { encryptSecret } from "@/lib/crypto";
-import { askJSON, askText, imageBlock, BRAND_RULES } from "@/lib/ai";
+import {
+  aiConfigured,
+  askJSON,
+  askText,
+  imageBlock,
+  imageBlockFromBuffer,
+  BRAND_RULES,
+  type AiImageBlock,
+} from "@/lib/ai";
 import { removeReflection, imageEditConfigured } from "@/lib/image-edit";
+import { pixelDiffStats, isNoChange } from "@/lib/image-diff";
 import { getStoreSnapshot } from "@/lib/admin-data";
 
 async function requireAdmin() {
@@ -16,6 +25,14 @@ async function requireAdmin() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autorizado");
+  // Rol de verdad, no solo sesión: un cliente logueado NO debe poder invocar
+  // estas acciones (las de IA gastan crédito aunque RLS proteja los datos).
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "admin") throw new Error("No autorizado");
   return supabase;
 }
 
@@ -167,7 +184,15 @@ export async function uploadImage(formData: FormData): Promise<string> {
     ext = "webp";
     contentType = "image/webp";
   } catch {
-    /* sin procesar: se sube el original */
+    // Sin procesar: solo se sube el original si es un formato apto para web.
+    // (Un HEIC de iPhone sin convertir no se vería en la tienda ni lo puede
+    // leer la IA de visión.)
+    const webSafe = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!webSafe.includes(contentType)) {
+      throw new Error(
+        "Formato de imagen no compatible. Exporta la foto como JPG o PNG y vuelve a subirla.",
+      );
+    }
   }
 
   const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -322,22 +347,27 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra):
 }
 
 /** Edita una imagen (quita reflejo) y la guarda en NUESTRO Storage. Un intento.
- *  `extra` = ajuste temporal de instrucción para este intento (de la auditoría). */
+ *  `extra` = ajuste temporal de instrucción para este intento (de la auditoría).
+ *  Devuelve también el buffer procesado para el diff determinista. */
 async function editAndStore(
   supabase: Awaited<ReturnType<typeof requireAdmin>>,
   imageUrl: string,
   seed: number,
   extra?: string,
-): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; url: string; buf: Buffer; contentType: string }
+  | { ok: false; error: string }
+> {
   const edited = await removeReflection(imageUrl, { seed, extra });
   if (!edited.ok) return { ok: false, error: edited.error };
   try {
-    const resp = await fetch(edited.data);
+    const resp = await fetch(edited.data, { signal: AbortSignal.timeout(20_000) });
     if (!resp.ok) return { ok: false, error: `No se pudo descargar la imagen editada (${resp.status}).` };
     const inBuf = Buffer.from(await resp.arrayBuffer());
     let out = inBuf;
-    let contentType = "image/jpeg";
-    let ext = "jpg";
+    // Si sharp fallara, conservamos el content-type real que reporta fal.
+    let contentType = resp.headers.get("content-type") || "image/jpeg";
+    let ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
     try {
       const sharp = (await import("sharp")).default;
       out = await sharp(inBuf)
@@ -355,107 +385,308 @@ async function editAndStore(
       .from(BUCKET)
       .upload(path, out, { contentType, upsert: false });
     if (error) return { ok: false, error: error.message };
-    return { ok: true, url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl };
+    return {
+      ok: true,
+      url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl,
+      buf: out,
+      contentType,
+    };
   } catch (err: any) {
     return { ok: false, error: err?.message || "No se pudo guardar la imagen editada." };
   }
 }
 
-/** Auditoría doble: mide FIDELIDAD al producto (no engañosa) Y cuánto se ha
- *  ELIMINADO el reflejo, y genera FEEDBACK (en inglés) para afinar el siguiente
- *  intento del editor. Publicable = fiel + reflejo limpio + no engañosa. */
-async function auditEdit(
-  originalUrl: string,
-  editedUrl: string,
-): Promise<
-  | {
-      ok: true;
-      publishable: boolean;
-      score: number;
-      fidelity: number;
-      reflectionRemoved: number;
-      changes: string[];
-      note: string;
-      feedback: string;
-    }
-  | { ok: false; error: string }
-> {
+/* --- Auditoría por CHECKLIST (anti-ruido) ---------------------------------
+ * Antes se pedían números 0–100 libres a un LLM de visión: demasiado ruidoso
+ * (dio fidelidad 90 a una pieza idealizada y reflejo 35 a una sin tocar).
+ * Ahora el auditor responde CATEGORÍAS cerradas y los números, el veredicto
+ * "publicable" y "engañosa" se calculan EN CÓDIGO. Se lanzan DOS auditores en
+ * paralelo con lentes distintas (reflejos / fidelidad) y se fusionan de forma
+ * PESIMISTA (por campo, gana el peor). ------------------------------------ */
+
+const AUDIT_ENUMS = {
+  person_reflection: ["none", "faint", "clear"],
+  room_reflection: ["none", "faint", "clear"],
+  silhouette: ["identical", "minor_change", "changed"],
+  surface_details: ["preserved", "partially_lost", "lost"],
+  metal_finish: ["same", "slightly_duller", "matte_or_dull"],
+  metal_color: ["same", "shifted"],
+  fastening_parts: ["same", "changed_or_missing"],
+  scene: ["same", "slightly_changed", "changed"],
+} as const;
+
+type AuditFields = {
+  [K in keyof typeof AUDIT_ENUMS]: (typeof AUDIT_ENUMS)[K][number];
+} & {
+  elements_added_or_removed: boolean;
+  note_es: string;
+  feedback_en: string;
+};
+
+/** Normaliza un valor del checklist; desconocido → opción prudente (índice 1),
+ *  que bloquea "publicable" sin envenenar el resto (falla seguro). */
+function normEnum<K extends keyof typeof AUDIT_ENUMS>(
+  key: K,
+  v: unknown,
+): AuditFields[K] {
+  const opts = AUDIT_ENUMS[key] as readonly string[];
+  const s = String(v ?? "").toLowerCase().trim();
+  if (opts.includes(s)) return s as AuditFields[K];
+  return opts[Math.min(1, opts.length - 1)] as AuditFields[K];
+}
+
+function worseOf<K extends keyof typeof AUDIT_ENUMS>(
+  key: K,
+  a: AuditFields[K],
+  b: AuditFields[K],
+): AuditFields[K] {
+  const opts = AUDIT_ENUMS[key] as readonly string[];
+  return opts.indexOf(a) >= opts.indexOf(b) ? a : b;
+}
+
+async function auditEditOnce(
+  originalImg: AiImageBlock,
+  editedImg: AiImageBlock,
+  persona: string,
+  order: "orig-first" | "edited-first" = "orig-first",
+): Promise<{ ok: true; data: AuditFields } | { ok: false; error: string }> {
   const system = `${BRAND_RULES}
 
-Eres el control de calidad Y anti-publicidad-engañosa de Oucy Studios. Te doy DOS fotos de una joya: la ORIGINAL y una EDITADA por IA cuyo objetivo es que el metal pulido (tipo espejo) refleje solo BLANCO limpio de estudio en vez del fotógrafo/persona/móvil, SIN cambiar el producto.
+${persona}
 
-Evalúa DOS cosas por separado:
-1) FIDELIDAD (0-100): 100 = EXACTAMENTE el mismo producto real. Compara con MUCHÍSIMO detalle la FORMA y la SILUETA de cada pieza, las PROPORCIONES, y sobre todo la TEXTURA y el ACABADO de la superficie. Mira si la editada ha ALISADO, IDEALIZADO, SUAVIZADO o hecho MÁS PERFECTA/SIMÉTRICA la pieza: en la original puede haber zonas martelé/facetadas, planos, bollos, pequeñas irregularidades o imperfecciones reales; si en la editada esos detalles han desaparecido, la pieza se ve más lisa/perfecta, o cambia su forma/silueta/proporción, entonces la edición ha FALSEADO el producto → FIDELIDAD MUY BAJA (por debajo de 55) y "misleading": true. Baja mucho también si cambia el color o el acabado. Una foto "más bonita" pero que ya no representa la pieza real es ENGAÑOSA y NO vale.
-2) REFLEJO_ELIMINADO (0-100): cuánto se ha limpiado el reflejo del ENTORNO en el metal. 100 = el metal refleja SOLO blanco/estudio limpio (blanco y gradientes neutros), no se distingue NINGUNA persona NI la habitación. 0 = sigue reflejando la persona y/o la habitación como en la original.
+Te doy DOS fotos de la MISMA joya de metal pulido tipo espejo: la ORIGINAL y una EDITADA por IA. El objetivo legítimo de la edición era UNO SOLO: que el metal refleje un estudio blanco limpio en vez del fotógrafo y su habitación. Cualquier otro cambio en el producto sería publicidad engañosa.
 
-FÍJATE MUCHÍSIMO EN EL REFLEJO — es LO MÁS IMPORTANTE de todo. Examina CADA superficie metálica con lupa y compárala con la original: busca (a) siluetas humanas, cara, torso, brazos, manos, móvil/cámara; y (b) la HABITACIÓN reflejada — paredes, suelo, muebles, ventanas o cualquier zona/mancha de tono CÁLIDO, beige, marrón, oliva o verdoso que sea el entorno reflejado.
+CLAVES PARA JUZGAR BIEN (importantes):
+- El reflejo cambia el "dibujo" que se ve SOBRE el metal; que ese dibujo sea distinto NO es perder textura. Juzga forma/textura por: el CONTORNO y proporciones de cada pieza, las líneas de faceta o martelé visibles en los BORDES, bollos o planos físicos, y los cierres/postes.
+- El tono DORADO cálido propio del metal es correcto y NO es "habitación". "Reflejo de habitación" = formas reconocibles del entorno o manchas oscuras cálidas/oliva/beige/marrones que claramente son el entorno reflejado.
+- "faint" = cualquier rastro tenue o dudoso (ante la duda, marca faint, no none); "clear" = se reconoce sin esfuerzo.
+- Examina CADA superficie metálica con lupa, zona a zona, comparando ambas fotos.
 
-REGLA DURA: si en la EDITADA se distingue CUALQUIER rastro de una persona, O CUALQUIER zona cálida/oliva/beige/marrón que corresponda a la habitación reflejada (por pequeña o tenue que sea, aunque solo esté en una parte de una gota), entonces REFLEJO_ELIMINADO debe ser MUY BAJO (por debajo de 40) y NO puede considerarse limpio. Sé EXTREMADAMENTE estricto y desconfiado: ante la mínima duda, cuenta como que el reflejo de la habitación SIGUE ahí.
+Rellena este checklist EXACTO. Devuelve SOLO el JSON, sin texto extra:
+{
+ "person_reflection": "none|faint|clear",
+ "room_reflection": "none|faint|clear",
+ "silhouette": "identical|minor_change|changed",
+ "surface_details": "preserved|partially_lost|lost",
+ "metal_finish": "same|slightly_duller|matte_or_dull",
+ "metal_color": "same|shifted",
+ "fastening_parts": "same|changed_or_missing",
+ "scene": "same|slightly_changed|changed",
+ "elements_added_or_removed": false,
+ "note_es": "una frase breve en español para el admin",
+ "feedback_en": "one short instruction in ENGLISH for the image editor's NEXT attempt fixing what failed, or empty if nothing failed"
+}
+Significado: person_reflection = ¿en la EDITADA se ve persona/cara/brazos/manos/móvil reflejados en el metal? · room_reflection = ¿se ve la habitación/entorno reflejado (paredes, muebles, ventanas, manchas cálidas del entorno)? · silhouette = contorno/proporciones de cada pieza vs original · surface_details = facetas/martelé/bollos FÍSICOS conservados (según las claves de arriba) · metal_finish = ¿sigue siendo espejo brillante o se ha apagado/mateado? · metal_color = ¿el tono del oro es el mismo o ha virado (pálido/verdoso/oscuro)? · fastening_parts = postes/cierres/mariposas iguales · scene = cojín (arrugas), sombras proyectadas, fondo, encuadre y tamaño del sujeto · elements_added_or_removed = ¿se añadió o quitó algo (gemas, piezas, objetos)?`;
 
-Solo pon REFLEJO_ELIMINADO alto (>=80) si el metal refleja ÚNICAMENTE blanco y gradientes neutros claros y limpios (blancos/grises muy claros), como si estuviera dentro de una caja totalmente blanca, sin una sola zona que delate la habitación. (OJO: el color DORADO/amarillo propio del metal es correcto y NO cuenta como reflejo del entorno; lo que penaliza son las zonas cálidas/oscuras que son la habitación, no el oro en sí.)
-
-"misleading" (bool): true si la edición ha FALSEADO el producto (acabado/color/forma cambiados, manchas nuevas…).
-
-PUBLICABLE = FIDELIDAD >= 90 Y REFLEJO_ELIMINADO >= 80 Y no misleading (la pieza es idéntica a la real, sin idealizar).
-
-"feedback": UNA instrucción BREVE en INGLÉS para el editor de imagen en el PRÓXIMO intento, corrigiendo lo que falle. Ejemplos: "the person's reflection is still clearly visible on the right drop — replace those reflections with clean smooth white, keep the gold bright, glossy and warm, do NOT dull or darken it"; o si se apagó el metal: "keep the gold much brighter and mirror-glossy, do not desaturate".
-
-Devuelve EXCLUSIVAMENTE un JSON:
-{"fidelity":90,"reflection_removed":20,"misleading":false,"changes":[],"note":"...","feedback":"..."}
-- "changes": diferencias en español que afecten al PRODUCTO (vacía si el producto está intacto).
-- "note": frase breve en español para el admin.`;
-
-  const audit = await askJSON<{
-    fidelity?: number | string;
-    reflection_removed?: number | string;
-    misleading?: boolean;
-    changes?: unknown;
-    note?: string;
-    feedback?: string;
-  }>({
+  const blocks =
+    order === "orig-first"
+      ? [
+          { type: "text" as const, text: "ORIGINAL:" },
+          originalImg,
+          { type: "text" as const, text: "EDITADA:" },
+          editedImg,
+        ]
+      : [
+          { type: "text" as const, text: "EDITADA:" },
+          editedImg,
+          { type: "text" as const, text: "ORIGINAL:" },
+          originalImg,
+        ];
+  const r = await askJSON<Record<string, unknown>>({
     system,
-    maxTokens: 600,
+    maxTokens: 700,
     messages: [
       {
         role: "user",
-        content: [
-          { type: "text", text: "ORIGINAL:" },
-          imageBlock(originalUrl),
-          { type: "text", text: "EDITADA:" },
-          imageBlock(editedUrl),
-          { type: "text", text: "Devuelve el JSON de auditoría." },
-        ],
+        content: [...blocks, { type: "text", text: "Rellena el checklist JSON." }],
       },
     ],
   });
-  if (!audit.ok) return { ok: false, error: audit.error };
-
-  const clamp = (v: unknown): number => {
-    const n = parseFloat(String(v ?? ""));
-    return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
-  };
-  const fidelity = clamp(audit.data.fidelity);
-  const reflectionRemoved = clamp(audit.data.reflection_removed);
-  const changes = Array.isArray(audit.data.changes)
-    ? audit.data.changes.map((c) => String(c)).filter(Boolean).slice(0, 5)
-    : [];
-  const misleading = audit.data.misleading === true || changes.length > 0;
-  const publishable = !misleading && fidelity >= 90 && reflectionRemoved >= 80;
-  // Puntuación combinada: si engaña, capada; si no, prioriza el REFLEJO (es el
-  // objetivo) sobre la fidelidad.
-  const score = misleading
-    ? Math.min(fidelity, 30)
-    : Math.round(0.35 * fidelity + 0.65 * reflectionRemoved);
+  if (!r.ok) return r;
+  const d = r.data;
+  // Booleano robusto: los LLM a veces devuelven "true"/"yes" como string.
+  const rawBool = String(d.elements_added_or_removed ?? "").toLowerCase().trim();
+  const elements =
+    d.elements_added_or_removed === true ||
+    rawBool === "true" ||
+    rawBool === "yes" ||
+    rawBool === "1";
   return {
     ok: true,
+    data: {
+      person_reflection: normEnum("person_reflection", d.person_reflection),
+      room_reflection: normEnum("room_reflection", d.room_reflection),
+      silhouette: normEnum("silhouette", d.silhouette),
+      surface_details: normEnum("surface_details", d.surface_details),
+      metal_finish: normEnum("metal_finish", d.metal_finish),
+      metal_color: normEnum("metal_color", d.metal_color),
+      fastening_parts: normEnum("fastening_parts", d.fastening_parts),
+      scene: normEnum("scene", d.scene),
+      elements_added_or_removed: elements,
+      note_es: String(d.note_es ?? "").slice(0, 200),
+      feedback_en: String(d.feedback_en ?? "").slice(0, 400),
+    },
+  };
+}
+
+function mergeAudits(a: AuditFields, b: AuditFields): AuditFields {
+  return {
+    person_reflection: worseOf("person_reflection", a.person_reflection, b.person_reflection),
+    room_reflection: worseOf("room_reflection", a.room_reflection, b.room_reflection),
+    silhouette: worseOf("silhouette", a.silhouette, b.silhouette),
+    surface_details: worseOf("surface_details", a.surface_details, b.surface_details),
+    metal_finish: worseOf("metal_finish", a.metal_finish, b.metal_finish),
+    metal_color: worseOf("metal_color", a.metal_color, b.metal_color),
+    fastening_parts: worseOf("fastening_parts", a.fastening_parts, b.fastening_parts),
+    scene: worseOf("scene", a.scene, b.scene),
+    elements_added_or_removed: a.elements_added_or_removed || b.elements_added_or_removed,
+    note_es: [a.note_es, b.note_es].filter(Boolean).join(" · ").slice(0, 300),
+    feedback_en: [a.feedback_en, b.feedback_en].filter(Boolean).join(" Also: ").slice(0, 500),
+  };
+}
+
+interface AuditResult {
+  publishable: boolean;
+  score: number;
+  fidelity: number;
+  reflectionRemoved: number;
+  changes: string[];
+  note: string;
+  feedback: string;
+}
+
+/** Números y veredicto calculados en código a partir del checklist. */
+function scoreAudit(f: AuditFields): AuditResult {
+  const refl =
+    f.person_reflection === "clear" || f.room_reflection === "clear"
+      ? 10
+      : f.person_reflection === "faint"
+        ? 35
+        : f.room_reflection === "faint"
+          ? 60
+          : 100;
+
+  let fid = 100;
+  if (f.silhouette === "minor_change") fid -= 20;
+  else if (f.silhouette === "changed") fid -= 55;
+  if (f.surface_details === "partially_lost") fid -= 20;
+  else if (f.surface_details === "lost") fid -= 50;
+  if (f.metal_finish === "slightly_duller") fid -= 12;
+  else if (f.metal_finish === "matte_or_dull") fid -= 45;
+  if (f.metal_color === "shifted") fid -= 40;
+  if (f.fastening_parts === "changed_or_missing") fid -= 35;
+  if (f.scene === "slightly_changed") fid -= 5;
+  else if (f.scene === "changed") fid -= 20;
+  if (f.elements_added_or_removed) fid -= 60;
+  fid = Math.max(0, fid);
+
+  const misleading =
+    f.silhouette === "changed" ||
+    f.surface_details === "lost" ||
+    f.metal_finish === "matte_or_dull" ||
+    f.metal_color === "shifted" ||
+    f.fastening_parts === "changed_or_missing" ||
+    f.elements_added_or_removed;
+
+  const publishable =
+    !misleading &&
+    f.person_reflection === "none" &&
+    f.room_reflection === "none" &&
+    f.silhouette === "identical" &&
+    f.surface_details === "preserved" &&
+    f.metal_finish === "same" &&
+    f.metal_color === "same" &&
+    f.fastening_parts === "same" &&
+    f.scene !== "changed";
+
+  // Cualquier distorsión del producto (aunque no llegue a "engañosa") capa la
+  // puntuación: el "mejor intento" nunca debe preferir una pieza idealizada
+  // sobre una honesta con algo de reflejo. Cero-engaño manda sobre estética.
+  const distorted =
+    f.silhouette !== "identical" ||
+    f.surface_details !== "preserved" ||
+    f.metal_finish !== "same" ||
+    f.metal_color !== "same" ||
+    f.fastening_parts !== "same";
+  const score = misleading
+    ? Math.min(30, fid)
+    : Math.min(
+        distorted ? 55 : 100,
+        Math.round(0.35 * fid + 0.65 * refl),
+      );
+
+  const changes: string[] = [];
+  if (f.person_reflection !== "none")
+    changes.push(
+      f.person_reflection === "clear"
+        ? "Se sigue viendo a la persona/móvil reflejada"
+        : "Queda un rastro tenue de la persona reflejada",
+    );
+  if (f.room_reflection !== "none")
+    changes.push(
+      f.room_reflection === "clear"
+        ? "Se sigue viendo la habitación reflejada"
+        : "Queda un rastro tenue de la habitación reflejada",
+    );
+  if (f.silhouette !== "identical") changes.push("La forma/silueta de la pieza ha cambiado");
+  if (f.surface_details !== "preserved")
+    changes.push("Se han perdido detalles reales de la superficie (facetas/martelé)");
+  if (f.metal_finish !== "same") changes.push("El acabado se ha apagado (menos espejo)");
+  if (f.metal_color !== "same") changes.push("El tono del metal ha virado");
+  if (f.fastening_parts !== "same") changes.push("Los cierres/postes han cambiado o faltan");
+  if (f.scene === "changed") changes.push("La escena (cojín/sombras/encuadre) ha cambiado");
+  if (f.elements_added_or_removed) changes.push("Se han añadido o quitado elementos");
+
+  return {
     publishable,
     score,
-    fidelity,
-    reflectionRemoved,
+    fidelity: fid,
+    reflectionRemoved: refl,
     changes,
-    note: String(audit.data.note || ""),
-    feedback: String(audit.data.feedback || ""),
+    note: f.note_es,
+    feedback: f.feedback_en,
   };
+}
+
+/** Auditoría doble en paralelo (inspector de reflejos + inspector de
+ *  fidelidad), fusión pesimista y puntuación en código. Si hay buffers en
+ *  memoria se pasan en base64 (evita que la API re-descargue las URLs). */
+async function auditEdit(
+  originalUrl: string,
+  editedUrl: string,
+  bufs?: {
+    orig?: { buf: Buffer; type: string } | null;
+    edited?: { buf: Buffer; type: string } | null;
+  },
+): Promise<{ ok: true; data: AuditResult } | { ok: false; error: string }> {
+  const MAX_B64 = 3_500_000; // margen bajo el límite de ~5 MB/imagen de la API
+  const okTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const origImg =
+    bufs?.orig && bufs.orig.buf.length < MAX_B64 && okTypes.includes(bufs.orig.type)
+      ? imageBlockFromBuffer(bufs.orig.buf, bufs.orig.type)
+      : imageBlock(originalUrl);
+  const editedImg =
+    bufs?.edited && bufs.edited.buf.length < MAX_B64 && okTypes.includes(bufs.edited.type)
+      ? imageBlockFromBuffer(bufs.edited.buf, bufs.edited.type)
+      : imageBlock(editedUrl);
+  const [a, b] = await Promise.all([
+    auditEditOnce(
+      origImg,
+      editedImg,
+      "Eres un INSPECTOR DE REFLEJOS obsesivo de Oucy Studios: tu misión principal es encontrar cualquier rastro del fotógrafo, de personas o de la habitación reflejado en el metal (aunque rellenas el checklist completo).",
+      "orig-first",
+    ),
+    auditEditOnce(
+      origImg,
+      editedImg,
+      "Eres un INSPECTOR DE FIDELIDAD DE PRODUCTO obsesivo de Oucy Studios: tu misión principal es detectar si la pieza editada ya no es idéntica a la real — forma, textura física, acabado, color, cierres, escena (aunque rellenas el checklist completo).",
+      "edited-first",
+    ),
+  ]);
+  if (!a.ok && !b.ok) return { ok: false, error: a.error };
+  const fields =
+    a.ok && b.ok ? mergeAudits(a.data, b.data) : a.ok ? a.data : (b as { ok: true; data: AuditFields }).data;
+  return { ok: true, data: scoreAudit(fields) };
 }
 
 /** Quita el reflejo de una foto con IA y AUDITA el resultado (anti-publicidad
@@ -473,11 +704,23 @@ type CleanupBest = {
   feedback?: string; // ajuste transitorio para el siguiente intento
 };
 
+const BOLDER_FEEDBACK =
+  "The previous attempt made almost NO visible change — the person and the room are still reflected on the metal exactly as before. Be much bolder this time: repaint ALL reflected content on every metal surface as clean white studio reflections, while keeping the piece's exact contour, facet texture, finish, colour and the whole scene identical.";
+
+function betterOf(a: CleanupBest | null, b: CleanupBest): CleanupBest {
+  if (!a) return b;
+  return b.score > a.score ? b : a;
+}
+
+/** Un intento de borrado de reflejo: edita → gate determinista (¿cambió algo?)
+ *  → auditoría doble → devuelve el MEJOR acumulado + el feedback del ÚLTIMO
+ *  intento (para que el siguiente afine aunque este haya sido peor). */
 export async function cleanupPhoto(
   imageUrl: string,
   prevBest?: CleanupBest | null,
+  nextHint?: string,
 ): Promise<
-  | (CleanupBest & { ok: true; attempts: number })
+  | (CleanupBest & { ok: true; attempts: number; lastFeedback: string })
   | { ok: false; error: string }
 > {
   const supabase = await requireAdmin();
@@ -490,68 +733,129 @@ export async function cleanupPhoto(
     };
   }
 
-  const MAX_ATTEMPTS = 1; // 1 edición + auditoría por petición (modelo Pro lento); el cliente encadena hasta AUTO_CAP
-  let best: CleanupBest | null = prevBest ?? null;
-  // Ajuste temporal de instrucción que arrastramos entre intentos (NO toca el
-  // prompt base guardado). Arranca del feedback previo si venimos de otra tanda.
-  let extra = prevBest?.feedback ?? "";
-  let done = 0;
+  const best: CleanupBest | null = prevBest ?? null;
+  // Ajuste TEMPORAL de instrucción para este intento: el feedback del último
+  // intento (nextHint) manda; si no hay, el del mejor. Nunca toca el prompt base.
+  const extra = String(nextHint || prevBest?.feedback || "").slice(0, 600);
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const seed = Math.floor(Math.random() * 1_000_000_000);
-    const stored = await editAndStore(supabase, imageUrl, seed, extra || undefined);
-    if (!stored.ok) {
-      if (best) break; // conservamos el mejor que tuviéramos
-      return { ok: false, error: stored.error };
+  // Buffer de la original para el gate determinista (si falla, seguimos sin
+  // gate). Se normaliza por la MISMA tubería que la editada (recorte cuadrado
+  // 1400) para que el diff compare geometrías iguales. Se descarga EN PARALELO
+  // con la edición para no sumar latencias (presupuesto de 60 s por petición).
+  let originalBuf: Buffer | null = null;
+  let originalType = "image/webp";
+  const fetchOriginal = (async () => {
+    try {
+      const r = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
+      if (!r.ok) return;
+      const raw = Buffer.from(await r.arrayBuffer());
+      try {
+        const sharp = (await import("sharp")).default;
+        originalBuf = await sharp(raw)
+          .rotate()
+          .resize(1400, 1400, { fit: "cover", position: "centre" })
+          .webp({ quality: 82 })
+          .toBuffer();
+      } catch {
+        originalBuf = raw;
+        originalType = r.headers.get("content-type") || "image/webp";
+      }
+    } catch {
+      /* sin gate */
     }
-    done = attempt;
+  })();
 
-    const audit = await auditEdit(imageUrl, stored.url);
-    // Sin auditoría (falta ANTHROPIC_API_KEY) no podemos puntuar ni verificar.
-    if (!audit.ok) {
-      return {
-        ok: true,
-        cleanedUrl: stored.url,
-        safe: false,
-        score: 0,
-        changes: ["No se pudo auditar automáticamente (falta ANTHROPIC_API_KEY); compárala tú."],
-        note: "",
-        attempts: attempt,
-      };
-    }
+  const seed = Math.floor(Math.random() * 1_000_000_000);
+  const [stored] = await Promise.all([
+    editAndStore(supabase, imageUrl, seed, extra || undefined),
+    fetchOriginal,
+  ]);
+  if (!stored.ok) return { ok: false, error: stored.error };
 
-    const candidate: CleanupBest = {
-      cleanedUrl: stored.url,
-      safe: audit.publishable,
-      score: audit.score,
-      fidelity: audit.fidelity,
-      reflectionRemoved: audit.reflectionRemoved,
-      changes: audit.changes,
-      note: audit.note,
-      feedback: audit.feedback,
-    };
-    if (!best || candidate.score > best.score) best = candidate;
-
-    // La IA reajusta la instrucción para el SIGUIENTE intento (transitorio).
-    if (audit.feedback) extra = audit.feedback;
-
-    if (audit.publishable) {
-      best = candidate; // devolvemos la publicable
-      break;
+  // Gate 1 (sin IA): ¿la edición no cambió nada? → el reflejo sigue igual;
+  // no gastamos auditoría y forzamos una instrucción más contundente.
+  if (originalBuf) {
+    try {
+      const diff = await pixelDiffStats(originalBuf, stored.buf);
+      if (isNoChange(diff)) {
+        const candidate: CleanupBest = {
+          cleanedUrl: stored.url,
+          safe: false,
+          score: 5,
+          fidelity: 100,
+          reflectionRemoved: 0,
+          changes: ["La edición no cambió nada visible: el reflejo sigue igual."],
+          note: "El editor devolvió la imagen casi idéntica; el siguiente intento irá con una instrucción más contundente.",
+          feedback: BOLDER_FEEDBACK,
+        };
+        return {
+          ok: true,
+          ...betterOf(best, candidate),
+          attempts: 1,
+          lastFeedback: BOLDER_FEEDBACK,
+        };
+      }
+    } catch {
+      /* gate no disponible; sigue la auditoría */
     }
   }
 
-  if (!best) return { ok: false, error: "No se pudo generar ninguna versión." };
+  const audit = await auditEdit(imageUrl, stored.url, {
+    orig: originalBuf ? { buf: originalBuf, type: originalType } : null,
+    edited: { buf: stored.buf, type: stored.contentType },
+  });
+  // Auditoría no disponible: NO perdemos el mejor acumulado y contamos la
+  // causa real (clave ausente vs error transitorio de la API).
+  if (!audit.ok) {
+    const cause = aiConfigured()
+      ? `La auditoría falló en este intento (${audit.error.slice(0, 140)}).`
+      : "No se pudo auditar (falta ANTHROPIC_API_KEY en Vercel); compárala tú antes de usarla.";
+    const candidate: CleanupBest = {
+      cleanedUrl: stored.url,
+      safe: false,
+      score: 0,
+      changes: [cause],
+      note: cause,
+      feedback: "",
+    };
+    return {
+      ok: true,
+      ...betterOf(best, candidate),
+      note: cause,
+      attempts: 1,
+      lastFeedback: "",
+    };
+  }
 
-  const note = best.safe
-    ? best.note || "Publicable: producto fiel y reflejo limpio."
-    : (best.reflectionRemoved ?? 0) < 60
-      ? "La IA aún no ha quitado bien el reflejo. Sigue probando o usa la foto original."
-      : best.changes.length > 0
-        ? "Casi: el reflejo mejora pero la auditoría ve algún cambio en el producto. Sigue probando."
-        : "Muy cerca. Sigue probando para afinar el reflejo.";
+  const a = audit.data;
+  const candidate: CleanupBest = {
+    cleanedUrl: stored.url,
+    safe: a.publishable,
+    score: a.score,
+    fidelity: a.fidelity,
+    reflectionRemoved: a.reflectionRemoved,
+    changes: a.changes,
+    note: a.note,
+    feedback: a.feedback,
+  };
+  const result = candidate.safe ? candidate : betterOf(best, candidate);
 
-  return { ok: true, ...best, note, attempts: done };
+  const note = result.safe
+    ? result.note || "Publicable: producto fiel y reflejo limpio."
+    : (result.reflectionRemoved ?? 0) < 60
+      ? result.note ||
+        "La IA aún no ha quitado bien el reflejo. Sigue probando o usa la foto original."
+      : result.changes.length > 0
+        ? "Casi: reflejo mejor, pero la auditoría aún ve diferencias. Sigue probando."
+        : "Muy cerca. Sigue probando para afinar.";
+
+  return {
+    ok: true,
+    ...result,
+    note,
+    attempts: 1,
+    lastFeedback: a.feedback || "",
+  };
 }
 
 /** Copiloto interno del panel: responde sobre el estado de la tienda y redacta
@@ -576,7 +880,7 @@ ${JSON.stringify(snapshot)}`;
 
   const msgs = history
     .slice(-12)
-    .map((m) => ({ role: m.role, content: m.content }));
+    .map((m) => ({ role: m.role, content: String(m.content).slice(0, 4000) }));
 
   const r = await askText({ system, maxTokens: 1400, messages: msgs });
   if (!r.ok) return { ok: false, error: r.error };
@@ -593,7 +897,7 @@ export async function enhancePhoto(
   const supabase = await requireAdmin();
   if (!imageUrl) return { ok: false, error: "Sin imagen." };
   try {
-    const resp = await fetch(imageUrl);
+    const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
     if (!resp.ok) return { ok: false, error: `No se pudo leer la imagen (${resp.status}).` };
     const inBuf = Buffer.from(await resp.arrayBuffer());
     const sharp = (await import("sharp")).default;
@@ -601,9 +905,10 @@ export async function enhancePhoto(
       .rotate()
       .resize(1400, 1400, { fit: "cover", position: "centre" })
       // Ajustes GLOBALES (no cambian el producto): un poco más de luz, algo de
-      // contraste, un toque de saturación y nitidez.
-      .modulate({ brightness: 1.06, saturation: 1.05 })
-      .linear(1.08, -10)
+      // contraste, un toque de saturación y nitidez. Suaves para no quemar los
+      // blancos (cojín/fondo suelen estar ya muy claros).
+      .modulate({ brightness: 1.04, saturation: 1.04 })
+      .linear(1.05, -6)
       .sharpen()
       .webp({ quality: 88 })
       .toBuffer();

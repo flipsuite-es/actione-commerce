@@ -9,6 +9,9 @@ const nextConfig = {
   // del bundle del servidor para que Vercel use su binario correcto.
   experimental: {
     serverComponentsExternalPackages: ["sharp"],
+    // Las fotos de móvil superan el límite por defecto (1 MB) del body de las
+    // server actions; sin esto, subir una foto grande falla con error opaco.
+    serverActions: { bodySizeLimit: "12mb" },
   },
 };
 

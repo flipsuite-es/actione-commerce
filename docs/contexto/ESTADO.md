@@ -80,19 +80,33 @@ backoffice completos y funcionando.
      modelo reinventara y apagara el metal), sino **«simula que se disparó dentro de una carpa/cartulina blanca»**: el
      metal refleja solo blanco limpio + brillos cálidos, manteniendo el dorado/plateado brillante, forma, tamaño y
      acabado; sin gemas ni ocultar defectos. `guidance_scale` 2.5 (pegado a la foto original). **Reintenta solo** (hasta
-     2 por tanda con semilla distinta). **Auditoría DOBLE:** mide (a) FIDELIDAD al producto (no engañosa) y (b) cuánto se
-     ha ELIMINADO el reflejo — antes solo medía fidelidad, por eso una foto que no tocaba nada sacaba 90 con el reflejo
-     intacto. **Publicable = fidelidad ≥85 + reflejo ≥80 + no engañosa.** La auditoría además genera **feedback** (en
-     inglés) y el bucle **reajusta la instrucción del editor en el siguiente intento** (ajuste TEMPORAL concatenado al
-     `REFLECTION_PROMPT` base, que NO se modifica). **Bucle automático en el cliente:** reintenta SOLO hasta publicable o
-     `AUTO_CAP=10` intentos; muestra calidad + «reflejo limpiado X/100» + «fidelidad Y/100», botón «Parar». Modelo por
-     defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`): rápido y fiable. Gemini 3 Pro
-     (`fal-ai/gemini-3-pro-image-preview/edit`) da algo más de calidad pero es LENTO y se pasa del `maxDuration=60`
-     (error "Load failed") en plan Hobby → seleccionable con `FAL_IMAGE_MODEL` solo si el plan permite funciones largas.
-     Clave del acierto: el prompt reencuadra el reflejo como «el ENTORNO que la joya espejo refleja» (cambiarlo por
-     blanco), NO como la joya (que se preserva con su forma y textura reales, sin idealizar). La auditoría mide reflejo
-     (persona + habitación/tonos cálidos) y fidelidad (forma/silueta/textura; idealizar = engañoso). Gemini usa
-     `image_urls[]`; Kontext `image_url`.
+     **REDISEÑADO tras auditoría exhaustiva multi-agente (2026-07-03):**
+     · **Auditoría por CHECKLIST** (no números 0-100 libres, que eran ruidosos): el auditor responde categorías cerradas
+       (person_reflection, room_reflection, silhouette, surface_details, metal_finish, metal_color, fastening_parts,
+       scene, elements_added_or_removed) y los números/veredicto se calculan EN CÓDIGO (`scoreAudit`).
+       **DOS auditores en paralelo** (lente reflejos / lente fidelidad, orden de imágenes invertido) con **fusión
+       pesimista** por campo. Publicable = sin engaño + person/room "none" + silueta/superficie/acabado/color/cierres
+       intactos. Cualquier distorsión del producto (aunque no llegue a engañosa) **capa la puntuación a 55** para que el
+       "mejor" nunca prefiera una pieza idealizada. Las imágenes van a Claude en **base64** (sin re-descarga de URLs).
+     · **Gate determinista** (`src/lib/image-diff.ts`, sharp, calibrado con test sintético): si la edición no cambió nada
+       (diff <0,4% en gris 192², blur, brillo normalizado) se salta la auditoría, puntúa 5 y fuerza feedback contundente.
+     · **Feedback del ÚLTIMO intento** viaja aparte del mejor (`lastFeedback`/`nextHint`) para que el bucle siga
+       afinando aunque el intento haya sido peor. En Gemini la seed no existe → **coletillas de variación** rotatorias
+       para que los reintentos no sean peticiones idénticas.
+     · **Prompt de edición** genérico (oro O plata, cualquier prop), sin contradicción física ("espejo reflejando estudio
+       blanco sigue siendo brillante"), listón alineado con la auditoría ("faint también es fallo"), y lista completa de
+       preservación (silueta, facetas, cierres/postes, sombras, prop, encuadre).
+     · **Robustez:** timeouts propios en TODAS las llamadas externas (Anthropic 25s, fal 32s, descargas 15-20s) con
+       errores claros; 429 con mensaje amable; descarga del original EN PARALELO con la edición; fal `images:[]` con
+       `description` (rechazo de seguridad) surfaceado; content-type real si sharp falla; HEIC rechazado con aviso;
+       `bodySizeLimit: 12mb` (fotos de móvil >1MB); `extractJsonObject` balanceado en askJSON.
+     · **Cliente:** tope de 10 intentos POR TANDA («Seguir probando» = otra tanda, nunca no-op), Wake Lock para que el
+       móvil no apague la pantalla, «Parando…» al pulsar Parar, los errores conservan el mejor intento visible, y
+       quitar/sustituir/descartar una foto PARA el bucle en vuelo (sin gasto invisible).
+     · **Seguridad:** `requireAdmin()` ahora verifica `role='admin'` en profiles (antes solo sesión: un cliente logueado
+       podía invocar las acciones de IA y gastar crédito).
+     Modelo por defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`, `image_urls[]`);
+     Gemini 3 Pro es más lento (timeouts en Hobby) → `FAL_IMAGE_MODEL` solo con funciones largas. Kontext usa `image_url`.
   6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): procesado **determinista** con sharp (ajustes GLOBALES
      de luz/contraste/saturación/nitidez, como el "editar" del móvil). NO usa IA generativa: no inventa píxeles ni cambia
      forma/color/acabado → **nunca es publicidad engañosa**. Gratis, instantáneo, sin claves. Botón «Mejorar calidad» por

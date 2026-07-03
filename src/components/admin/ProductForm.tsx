@@ -21,6 +21,7 @@ interface PhotoQc {
 
 interface PhotoCleanup {
   loading?: boolean;
+  stopping?: boolean;
   cleanedUrl?: string;
   safe?: boolean;
   score?: number;
@@ -28,7 +29,8 @@ interface PhotoCleanup {
   reflectionRemoved?: number;
   changes?: string[];
   note?: string;
-  feedback?: string; // ajuste transitorio para el siguiente intento
+  feedback?: string; // feedback del mejor intento
+  lastFeedback?: string; // feedback del ÚLTIMO intento (guía el siguiente)
   error?: string;
   attempts?: number; // acumulado (todas las tandas)
 }
@@ -54,14 +56,18 @@ export default function ProductForm({
 
   // Bandera de parada del bucle automático, por foto.
   const stopRef = useRef<Record<string, boolean>>({});
-  const AUTO_CAP = 10; // tope de intentos automáticos (protección coste/tiempo)
+  const CAP_PER_RUN = 10; // tope de intentos POR PULSACIÓN (protección coste/tiempo)
 
   function stopCleanup(url: string) {
     stopRef.current[url] = true;
+    setCleanup((prev) =>
+      prev[url] ? { ...prev, [url]: { ...prev[url], stopping: true } } : prev,
+    );
   }
 
   /** Bucle automático: reintenta solo hasta encontrar una publicable (segura)
-   *  o hasta AUTO_CAP intentos. Va guardando el mejor y actualizando la vista. */
+   *  o hasta CAP_PER_RUN intentos POR PULSACIÓN («Seguir probando» da otra
+   *  tanda). Va guardando el mejor y actualizando la vista. */
   async function runCleanup(url: string) {
     stopRef.current[url] = false;
     const current = cleanup[url];
@@ -79,19 +85,37 @@ export default function ProductForm({
           }
         : null;
     let total = current?.attempts ?? 0;
-    setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: true, error: undefined } }));
+    let lastHint = current?.lastFeedback ?? "";
+    let rounds = 0;
+    // Solo escribe estado si la entrada sigue viva (evita "resucitar" el panel
+    // tras quitarlo o sustituir la foto mientras había un intento en vuelo).
+    const write = (patch: (prev: Record<string, PhotoCleanup>) => PhotoCleanup) =>
+      setCleanup((prev) =>
+        stopRef.current[url] && !prev[url] ? prev : { ...prev, [url]: patch(prev) },
+      );
+    write((prev) => ({ ...prev[url], loading: true, stopping: false, error: undefined }));
+    // Wake Lock (si el navegador lo soporta): evita que el móvil apague la
+    // pantalla a mitad del bucle y Safari corte la petición en vuelo.
+    let wakeLock: { release?: () => Promise<void> } | null = null;
     try {
-      while (!stopRef.current[url] && total < AUTO_CAP) {
-        const r = await cleanupPhoto(url, best);
+      wakeLock = await (navigator as any).wakeLock?.request?.("screen");
+    } catch {
+      /* sin wake lock */
+    }
+    try {
+      while (!stopRef.current[url] && rounds < CAP_PER_RUN) {
+        const r = await cleanupPhoto(url, best, lastHint || undefined);
         if (!r || !r.ok) {
           const msg =
             r && !r.ok
               ? r.error
               : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.";
-          setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: false, error: msg } }));
+          write((prev) => ({ ...prev[url], loading: false, stopping: false, error: msg }));
           return;
         }
+        rounds += 1;
         total += r.attempts;
+        lastHint = r.lastFeedback || lastHint;
         best = {
           cleanedUrl: r.cleanedUrl,
           safe: r.safe,
@@ -102,31 +126,41 @@ export default function ProductForm({
           note: r.note,
           feedback: r.feedback,
         };
-        const keepGoing = !r.safe && !stopRef.current[url] && total < AUTO_CAP;
-        setCleanup((prev) => ({
-          ...prev,
-          [url]: { ...best!, attempts: total, loading: keepGoing },
+        const keepGoing = !r.safe && !stopRef.current[url] && rounds < CAP_PER_RUN;
+        write(() => ({
+          ...best!,
+          lastFeedback: lastHint,
+          attempts: total,
+          loading: keepGoing,
+          stopping: false,
         }));
         if (r.safe) break;
       }
     } catch (err: any) {
       const raw = String(err?.message || "");
       const msg = /load failed|fetch|network|timeout|aborted/i.test(raw)
-        ? "La edición tardó demasiado o se cortó la conexión. Pulsa «Seguir probando» para reintentar."
+        ? "Se cortó la conexión (¿pantalla bloqueada?). El mejor intento se conserva: pulsa «Seguir probando»."
         : raw || "No se pudo quitar el reflejo.";
-      setCleanup((prev) => ({
-        ...prev,
-        [url]: { ...prev[url], loading: false, error: msg },
-      }));
+      write((prev) => ({ ...prev[url], loading: false, stopping: false, error: msg }));
     } finally {
+      try {
+        await wakeLock?.release?.();
+      } catch {
+        /* noop */
+      }
       setCleanup((prev) =>
-        prev[url] ? { ...prev, [url]: { ...prev[url], loading: false } } : prev,
+        prev[url]
+          ? { ...prev, [url]: { ...prev[url], loading: false, stopping: false } }
+          : prev,
       );
     }
   }
 
-  // Sustituye la foto original por la corregida (el admin lo aprueba).
+  // Sustituye la foto original por la corregida (el admin lo aprueba). No se
+  // vuelve a pasar el control de calidad: la corregida ya fue auditada. Para
+  // cualquier bucle en vuelo sobre la original.
   function useCleaned(originalUrl: string, cleanedUrl: string) {
+    stopRef.current[originalUrl] = true;
     setImages((prev) => prev.map((u) => (u === originalUrl ? cleanedUrl : u)));
     setQc((prev) => {
       const next = { ...prev };
@@ -138,10 +172,15 @@ export default function ProductForm({
       delete next[originalUrl];
       return next;
     });
-    runCheck(cleanedUrl);
+    setEnhance((prev) => {
+      const next = { ...prev };
+      delete next[originalUrl];
+      return next;
+    });
   }
 
   function dismissCleanup(url: string) {
+    stopRef.current[url] = true;
     setCleanup((prev) => {
       const next = { ...prev };
       delete next[url];
@@ -178,8 +217,14 @@ export default function ProductForm({
   }
 
   function useEnhanced(originalUrl: string, newUrl: string) {
+    stopRef.current[originalUrl] = true;
     setImages((prev) => prev.map((u) => (u === originalUrl ? newUrl : u)));
     setEnhance((prev) => {
+      const next = { ...prev };
+      delete next[originalUrl];
+      return next;
+    });
+    setCleanup((prev) => {
       const next = { ...prev };
       delete next[originalUrl];
       return next;
@@ -378,8 +423,19 @@ export default function ProductForm({
                 <button
                   type="button"
                   onClick={() => {
+                    stopRef.current[src] = true;
                     setImages(images.filter((_, j) => j !== i));
                     setQc((prev) => {
+                      const next = { ...prev };
+                      delete next[src];
+                      return next;
+                    });
+                    setCleanup((prev) => {
+                      const next = { ...prev };
+                      delete next[src];
+                      return next;
+                    });
+                    setEnhance((prev) => {
                       const next = { ...prev };
                       delete next[src];
                       return next;
@@ -529,8 +585,9 @@ export default function ProductForm({
               ),
             )}
             <span className="w-full text-[11px] text-muted/80">
-              Reintenta sola hasta encontrar una publicable (o hasta {AUTO_CAP} intentos).
-              Puede tardar; verás el progreso y podrás pararlo.
+              Reintenta sola hasta encontrar una publicable (hasta {CAP_PER_RUN} intentos
+              por tanda; «Seguir probando» da otra tanda). Puede tardar varios minutos:
+              mantén la pantalla encendida. Podrás pararlo cuando quieras.
             </span>
           </div>
         )}
@@ -539,10 +596,18 @@ export default function ProductForm({
         {images.map((src, i) => {
           const cl = cleanup[src];
           if (!cl) return null;
-          if (cl.error) {
+          // Error sin ningún resultado previo: aviso + reintentar (sin panel).
+          if (cl.error && !cl.cleanedUrl) {
             return (
               <p key={src} className="mt-2 text-xs text-red-600">
-                Foto {i + 1}: {cl.error}
+                Foto {i + 1}: {cl.error}{" "}
+                <button
+                  type="button"
+                  onClick={() => runCleanup(src)}
+                  className="underline hover:text-gold-3"
+                >
+                  Reintentar
+                </button>
               </p>
             );
           }
@@ -554,6 +619,11 @@ export default function ProductForm({
                 {typeof cl.score === "number" ? ` · calidad ${cl.score}/100` : ""}
                 {cl.attempts && cl.attempts > 1 ? ` · ${cl.attempts} intentos` : ""}
               </p>
+              {cl.error && (
+                <p className="mt-1 text-xs text-red-600">
+                  {cl.error} (se conserva el mejor intento de abajo)
+                </p>
+              )}
               {(typeof cl.fidelity === "number" ||
                 typeof cl.reflectionRemoved === "number") && (
                 <p className="text-[11px] text-muted">
@@ -611,7 +681,8 @@ export default function ProductForm({
               {cl.loading && (
                 <p className="mt-2 text-xs text-ink-soft">
                   Probando automáticamente y afinando la instrucción en cada intento…
-                  (mejor calidad hasta ahora: {cl.score ?? 0}/100)
+                  (mejor calidad hasta ahora: {cl.score ?? 0}/100). Mantén la pantalla
+                  encendida.
                 </p>
               )}
 
@@ -627,9 +698,10 @@ export default function ProductForm({
                   <button
                     type="button"
                     onClick={() => stopCleanup(src)}
-                    className="btn-outline text-sm"
+                    disabled={cl.stopping}
+                    className="btn-outline text-sm disabled:opacity-50"
                   >
-                    Parar
+                    {cl.stopping ? "Parando… (acaba el intento en curso)" : "Parar"}
                   </button>
                 ) : (
                   !cl.safe && (
