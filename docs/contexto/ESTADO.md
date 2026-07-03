@@ -107,6 +107,14 @@ backoffice completos y funcionando.
        podía invocar las acciones de IA y gastar crédito).
      Modelo por defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`, `image_urls[]`);
      Gemini 3 Pro es más lento (timeouts en Hobby) → `FAL_IMAGE_MODEL` solo con funciones largas. Kontext usa `image_url`.
+     · **Arquitectura editor-audaz / auditor-guardián (2026-07-03, 2ª iteración):** demasiadas cláusulas de "no cambies
+       nada" hacían que el editor devolviera la foto casi intacta (fid 100 / reflejo 10 en 10 intentos). Ahora el prompt
+       pone el CAMBIO primero («que parezca hecha en un cubo blanco»), la identidad va compacta, hay **2 estrategias**
+       de formulación que alternan por seed (white-cube / quirúrgica) y una **escalada de audacia** (0-2) que el
+       servidor calcula del mejor intento previo: reflejo ≤35 → nivel 2 (CRITICAL), ≤60 → 1, si no → 0 (así también se
+       auto-amortigua si se pasa de frenada, porque la auditoría capa los excesos y el reflejo alto baja la audacia).
+       La auditoría se calibró para NO confundir el aclarado global esperado (reflejar estudio blanco = pieza más
+       luminosa) con «metal_color shifted»: shifted solo si el TONO vira (pálido/verdoso/rosado).
   6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): procesado **determinista** con sharp (ajustes GLOBALES
      de luz/contraste/saturación/nitidez, como el "editar" del móvil). NO usa IA generativa: no inventa píxeles ni cambia
      forma/color/acabado → **nunca es publicidad engañosa**. Gratis, instantáneo, sin claves. Botón «Mejorar calidad» por

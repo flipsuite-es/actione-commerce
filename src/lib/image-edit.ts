@@ -5,14 +5,14 @@ import type { AiResult } from "@/lib/ai";
  * Edición de imagen por IA (quitar reflejos de la joya pulida).
  *
  * Claude es de visión (no genera píxeles), así que el borrado de reflejos usa
- * un servicio de edición externo: **fal.ai** con FLUX.1 Kontext (edición por
- * instrucción que preserva el sujeto). Se activa con `FAL_KEY` en el servidor.
+ * un servicio de edición externo vía **fal.ai** (por defecto Gemini 2.5 Flash
+ * Image "nano-banana"). Se activa con `FAL_KEY` en el servidor.
  *
- * MUY IMPORTANTE (anti-publicidad-engañosa): la instrucción es conservadora —
- * solo se sustituye el CONTENIDO del reflejo (que se vea un estudio neutro en
- * vez de una persona), manteniendo idénticos forma, tamaño, color y tipo de
- * acabado, sin añadir gemas ni ocultar defectos reales. Además, quien llama a
- * esto debe auditar el resultado (comparar original vs editada) antes de usarlo.
+ * Reparto de responsabilidades (anti-publicidad-engañosa): el EDITOR es audaz
+ * con el reflejo (es el objetivo del cambio) y la AUDITORÍA de `cleanupPhoto`
+ * es quien garantiza la fidelidad al producto real, rechazando cualquier
+ * exceso (idealización, cambio de forma/color/acabado). Quien llama a esto
+ * SIEMPRE debe auditar el resultado antes de usarlo.
  */
 
 export function imageEditConfigured(): boolean {
@@ -26,24 +26,47 @@ export function imageEditConfigured(): boolean {
 const FAL_MODEL =
   process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-25-flash-image/edit";
 
-const REFLECTION_PROMPT =
-  "You are retouching a professional product photo of polished metal jewelry (gold-tone or silver-tone). The metal is mirror-polished, so its surface currently REFLECTS the photographer's environment: often the person taking the photo, their hands or phone, and the room — visible as recognisable shapes or as darker warm/olive/beige patches on the metal. " +
-  "YOUR ONLY TASK: change what the metal REFLECTS, nothing else. Repaint ALL reflected environment content on every metal surface — person, face, hands, phone, and the entire room (walls, floor, furniture, windows, warm-coloured surroundings) — so the metal instead reflects a bright, seamless, professional WHITE photo studio: clean white softbox highlights and soft neutral gradients, exactly like catalogue jewelry photography. Even FAINT traces count as failure: after the edit, nothing of the person or the room may be recognisable anywhere on the metal. " +
-  "IMPORTANT — a polished metal piece reflecting a white studio still looks SHINY, with strong contrast: bright white highlights blending into the metal's own colour in smooth glossy gradients. So keep the SAME metal colour and the SAME bright mirror finish; do NOT make it matte, flat, dull, darker, greyer or greener. " +
-  "WHAT MUST NOT CHANGE (this is a real product listing — altering the product is illegal false advertising): the piece's exact silhouette, size, proportions and position; every physical detail (hammered or faceted areas, flat spots, dents, bumps, scratches) exactly as in the original — do NOT smooth, reshape, symmetrise, beautify or idealise the piece, and do NOT hide real imperfections or add gemstones. " +
-  "ALSO PRESERVE EXACTLY: fastening parts (posts, butterfly backs, clasps) and their position, the cast shadows, the prop or surface the piece sits on (with its exact texture and wrinkles), the background, the framing, the camera angle and the composition (same crop, same subject size and position). Do NOT re-stage or re-render the scene. " +
-  "Photorealistic result: it must look like the SAME photograph, simply shot inside a clean white studio.";
+/* --- Sistema de prompts -----------------------------------------------------
+ * Lección aprendida (probada con fotos reales): si el prompt acumula demasiadas
+ * cláusulas de "NO CAMBIES nada", el editor elige lo seguro y devuelve la foto
+ * casi igual (reflejo intacto). La arquitectura correcta: el EDITOR debe ser
+ * AUDAZ con el reflejo — la fidelidad la vigila la AUDITORÍA, que rechaza los
+ * excesos. Por eso: (1) el objetivo del cambio va primero y con fuerza, (2) la
+ * identidad del producto se expresa compacta y sin legalismos amenazantes,
+ * (3) dos ESTRATEGIAS de formulación alternan entre intentos, y (4) un nivel de
+ * AUDACIA escala automáticamente cuando los intentos salen tímidos. --------- */
+
+/** Estrategia A — «cubo blanco»: re-iluminar la escena como si la foto se
+ *  hubiera hecho dentro de una caja de luz blanca. */
+const STRATEGY_WHITE_CUBE =
+  "TASK: make this exact product photo look like it was taken inside a seamless WHITE photography lightbox (a 'white cube'). The jewelry's polished metal currently mirrors the photographer and the room; inside the white cube it would mirror ONLY white panels, soft neutral gradients and bright softbox highlights. Repaint ALL reflections on the metal accordingly — the reflected person, phone, hands and room must completely disappear. This is a LARGE, REQUIRED change to what appears on the metal surfaces: if a person or the room is still recognisable in the reflections, the edit has FAILED.";
+
+/** Estrategia B — «sustitución quirúrgica»: reemplazar el contenido reflejado. */
+const STRATEGY_SURGICAL =
+  "TASK: on every polished metal surface of this jewelry, REPLACE the mirrored environment (the person taking the photo, their phone and hands, walls, furniture, windows, warm room tones) with the reflection of an empty white photo studio: white panels, soft neutral gradients, bright white highlights — like catalogue jewelry photography. Repaint those reflected areas boldly: a big, visible change on the metal is expected and required. Even faint leftover traces of the person or the room count as failure.";
+
+/** Identidad del producto y de la escena (común a ambas estrategias). */
+const SHARED_IDENTITY =
+  "KEEP THE SAME REAL OBJECT AND SCENE: the piece keeps its exact contour, size, proportions and position; its physical surface details (facets, hammered marks, flat spots, dents, scratches) stay as in the original — do not beautify, smooth or symmetrise it, do not hide imperfections, do not add gemstones. (Note: the light pattern REFLECTED on the metal will change a lot — that is required; the piece's physical shape and details must not.) The metal keeps the same colour tone and stays glossy and mirror-bright: a mirror reflecting a white studio still shows strong contrast between bright white highlights and the metal's own tone — never matte, dull, darker, greyer or greener. Fastening parts (posts, butterfly backs, clasps), cast shadows, the prop or surface the piece sits on (with its exact texture and wrinkles), the background, the framing and the camera angle all stay identical. Do not add or remove any object. Photorealistic result.";
+
+/** Escalada de audacia cuando los intentos anteriores salieron tímidos. */
+const BOLDNESS_SUFFIXES = [
+  "",
+  "\n\nNOTE: a previous attempt changed too little — the person and the room were still reflected on the metal. Be BOLDER on the reflected content this time: repaint the metal's reflections completely instead of copying them from the original.",
+  "\n\nCRITICAL: previous attempts kept returning the reflections almost unchanged — that output is useless. The mirrored person/phone/room MUST be gone. Aggressively repaint EVERY reflection on ALL metal surfaces as clean white-studio content (while keeping the piece's shape, physical details, colour and glossiness). Prioritise removing the reflections.",
+];
 
 /** Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
  *  `seed`: en FLUX se envía como seed real; en Gemini (que no acepta seed)
- *  selecciona una coletilla de variación del prompt para que los reintentos
- *  no sean peticiones idénticas.
+ *  selecciona la ESTRATEGIA de formulación (A/B), de modo que los reintentos
+ *  nunca sean peticiones idénticas.
  *  `extra`: ajuste TEMPORAL de instrucción para ESTE intento (viene de la
- *  auditoría, para afinar). NO modifica `REFLECTION_PROMPT` (el prompt base
- *  guardado): se concatena solo para esta llamada. */
+ *  auditoría). NO modifica los prompts base: se concatena solo en esta llamada.
+ *  `boldness` (0-2): escalada automática cuando los intentos previos salieron
+ *  tímidos (fidelidad alta pero reflejo intacto). */
 export async function removeReflection(
   imageUrl: string,
-  opts: { seed?: number; extra?: string } = {},
+  opts: { seed?: number; extra?: string; boldness?: number } = {},
 ): Promise<AiResult<string>> {
   const key = process.env.FAL_KEY;
   if (!key) {
@@ -54,23 +77,16 @@ export async function removeReflection(
     };
   }
   const isGemini = FAL_MODEL.includes("gemini");
-  // Gemini NO acepta `seed` (solo la rama FLUX lo envía). Para que dos
-  // reintentos no manden un body byte-idéntico, la seed selecciona una
-  // coletilla de variación que además REFUERZA la instrucción clave.
-  const VARIATION_SUFFIXES = [
-    "",
-    " Re-check: every warm/olive/beige patch on the metal is reflected room — repaint it as clean white studio reflection.",
-    " Double-check the largest metal surfaces: only white-studio tones may remain there, no warm or dark reflected patches.",
-    " Inspect the edges and curved areas of the metal where room reflections persist; they must reflect only the white studio.",
-  ];
-  const variation =
-    isGemini && opts.seed != null
-      ? VARIATION_SUFFIXES[opts.seed % VARIATION_SUFFIXES.length]
-      : "";
+  const seed = opts.seed ?? 0;
+  const strategy = seed % 2 === 0 ? STRATEGY_WHITE_CUBE : STRATEGY_SURGICAL;
+  const boldness =
+    BOLDNESS_SUFFIXES[Math.max(0, Math.min(BOLDNESS_SUFFIXES.length - 1, opts.boldness ?? 0))];
   const prompt =
-    (opts.extra
-      ? `${REFLECTION_PROMPT}\n\nAlso, fix this specifically in this attempt: ${opts.extra}`
-      : REFLECTION_PROMPT) + variation;
+    strategy +
+    "\n\n" +
+    SHARED_IDENTITY +
+    boldness +
+    (opts.extra ? `\n\nAlso, fix this specifically in this attempt: ${opts.extra}` : "");
   // Gemini ("nano-banana") usa image_urls[]; FLUX Kontext usa image_url + params.
   const body = isGemini
     ? { prompt, image_urls: [imageUrl] }

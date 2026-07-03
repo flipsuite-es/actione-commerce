@@ -354,11 +354,12 @@ async function editAndStore(
   imageUrl: string,
   seed: number,
   extra?: string,
+  boldness?: number,
 ): Promise<
   | { ok: true; url: string; buf: Buffer; contentType: string }
   | { ok: false; error: string }
 > {
-  const edited = await removeReflection(imageUrl, { seed, extra });
+  const edited = await removeReflection(imageUrl, { seed, extra, boldness });
   if (!edited.ok) return { ok: false, error: edited.error };
   try {
     const resp = await fetch(edited.data, { signal: AbortSignal.timeout(20_000) });
@@ -459,6 +460,7 @@ Te doy DOS fotos de la MISMA joya de metal pulido tipo espejo: la ORIGINAL y una
 CLAVES PARA JUZGAR BIEN (importantes):
 - El reflejo cambia el "dibujo" que se ve SOBRE el metal; que ese dibujo sea distinto NO es perder textura. Juzga forma/textura por: el CONTORNO y proporciones de cada pieza, las líneas de faceta o martelé visibles en los BORDES, bollos o planos físicos, y los cierres/postes.
 - El tono DORADO cálido propio del metal es correcto y NO es "habitación". "Reflejo de habitación" = formas reconocibles del entorno o manchas oscuras cálidas/oliva/beige/marrones que claramente son el entorno reflejado.
+- MUY IMPORTANTE: una pieza pulida reflejando un estudio BLANCO se ve GLOBALMENTE más clara y luminosa que la misma pieza reflejando una habitación oscura — ese aclarado general es EL OBJETIVO de la edición y NO cuenta como "metal_color shifted" ni como cambio de acabado. Marca "shifted" solo si el TONO propio del metal ha virado (p. ej. de dorado a pálido/verdoso/rosado/gris), y "matte_or_dull" solo si ha perdido los brillos especulares (ya no parece espejo).
 - "faint" = cualquier rastro tenue o dudoso (ante la duda, marca faint, no none); "clear" = se reconoce sin esfuerzo.
 - Examina CADA superficie metálica con lupa, zona a zona, comparando ambas fotos.
 
@@ -737,6 +739,12 @@ export async function cleanupPhoto(
   // Ajuste TEMPORAL de instrucción para este intento: el feedback del último
   // intento (nextHint) manda; si no hay, el del mejor. Nunca toca el prompt base.
   const extra = String(nextHint || prevBest?.feedback || "").slice(0, 600);
+  // Audacia escalonada: si el mejor intento previo fue TÍMIDO (producto intacto
+  // pero reflejo sin quitar), el editor necesita presión, no más cautela. La
+  // fidelidad la protege la auditoría, que rechaza los excesos.
+  const prevRefl = prevBest?.reflectionRemoved;
+  const boldness =
+    prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
 
   // Buffer de la original para el gate determinista (si falla, seguimos sin
   // gate). Se normaliza por la MISMA tubería que la editada (recorte cuadrado
@@ -767,7 +775,7 @@ export async function cleanupPhoto(
 
   const seed = Math.floor(Math.random() * 1_000_000_000);
   const [stored] = await Promise.all([
-    editAndStore(supabase, imageUrl, seed, extra || undefined),
+    editAndStore(supabase, imageUrl, seed, extra || undefined, boldness),
     fetchOriginal,
   ]);
   if (!stored.ok) return { ok: false, error: stored.error };
