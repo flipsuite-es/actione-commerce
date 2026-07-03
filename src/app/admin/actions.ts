@@ -699,10 +699,15 @@ export async function startCleanup(
   const prevRefl = prevBest?.reflectionRemoved;
   const boldness =
     prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
-  const sub = await submitReflectionEdit(imageUrl, {
-    extra: extra || undefined,
-    boldness,
-  });
+  // Motor: el rápido por defecto (cola de segundos; la composición protege la
+  // escena). Se ESCALA al fuerte solo si el rápido se mostró tímido — su cola
+  // puede tardar minutos, y para eso está la reanudación de ticket.
+  const engine = boldness >= 2 ? "strong" : "fast";
+  const sub = await submitReflectionEdit(
+    imageUrl,
+    { extra: extra || undefined, boldness },
+    engine,
+  );
   if (!sub.ok) return sub;
   return { ok: true, ticket: sub.data };
 }

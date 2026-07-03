@@ -19,12 +19,21 @@ export function imageEditConfigured(): boolean {
   return !!process.env.FAL_KEY;
 }
 
-// Modelo de edición. Por defecto Gemini 3 Pro ("nano-banana Pro"), el más capaz
-// para esta edición. Es lento para el modo síncrono (60 s), así que se usa la
-// COLA de fal (submit + poll desde el cliente), sin límite de tiempo.
-// Override con FAL_IMAGE_MODEL (p. ej. "fal-ai/gemini-25-flash-image/edit").
-const FAL_MODEL =
+// DOS motores de edición vía cola de fal:
+//  - "fast": Gemini 2.5 Flash — cola de segundos, barato; con la composición
+//    por máscara protegiendo la escena es el motor por defecto.
+//  - "strong": Gemini 3 Pro — más capaz pero su cola puede saturarse durante
+//    minutos; se usa como ESCALADA cuando el rápido se muestra tímido.
+// Override del fuerte con FAL_IMAGE_MODEL.
+const FAL_MODEL_FAST = "fal-ai/gemini-25-flash-image/edit";
+const FAL_MODEL_STRONG =
   process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-3-pro-image-preview/edit";
+
+export type EditEngine = "fast" | "strong";
+
+function modelFor(engine: EditEngine): string {
+  return engine === "strong" ? FAL_MODEL_STRONG : FAL_MODEL_FAST;
+}
 
 /* --- ARQUITECTURA "IA SOLO DONDE ES IMPRESCINDIBLE" --------------------------
  * La IA edita la imagen entera pero SOLO SE USA SU METAL: `pollCleanup`
@@ -82,7 +91,7 @@ export async function removeReflection(
         "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel (Settings → Environment Variables) para activar el borrado de reflejos.",
     };
   }
-  const isGemini = FAL_MODEL.includes("gemini");
+  const isGemini = FAL_MODEL_FAST.includes("gemini");
   const prompt = buildMetalPrompt(opts);
   // Gemini ("nano-banana") usa image_urls[]; FLUX Kontext usa image_url + params.
   const body = isGemini
@@ -97,7 +106,7 @@ export async function removeReflection(
         ...(opts.seed != null ? { seed: opts.seed } : {}),
       };
   try {
-    const res = await fetch(`https://fal.run/${FAL_MODEL}`, {
+    const res = await fetch(`https://fal.run/${FAL_MODEL_FAST}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -168,8 +177,8 @@ export function isFalQueueUrl(url: string): boolean {
   }
 }
 
-function buildEditBody(imageUrl: string, opts: EditPromptOpts) {
-  const isGemini = FAL_MODEL.includes("gemini");
+function buildEditBody(imageUrl: string, opts: EditPromptOpts, model: string) {
+  const isGemini = model.includes("gemini");
   const prompt = buildMetalPrompt(opts);
   return isGemini
     ? { prompt, image_urls: [imageUrl] }
@@ -188,6 +197,7 @@ function buildEditBody(imageUrl: string, opts: EditPromptOpts) {
 export async function submitReflectionEdit(
   imageUrl: string,
   opts: EditPromptOpts = {},
+  engine: EditEngine = "fast",
 ): Promise<AiResult<QueueTicket>> {
   const key = process.env.FAL_KEY;
   if (!key) {
@@ -197,14 +207,15 @@ export async function submitReflectionEdit(
         "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel (Settings → Environment Variables) para activar el borrado de reflejos.",
     };
   }
+  const model = modelFor(engine);
   try {
-    const res = await fetch(`https://queue.fal.run/${FAL_MODEL}`, {
+    const res = await fetch(`https://queue.fal.run/${model}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
         authorization: `Key ${key}`,
       },
-      body: JSON.stringify(buildEditBody(imageUrl, opts)),
+      body: JSON.stringify(buildEditBody(imageUrl, opts, model)),
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) {
