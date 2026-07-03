@@ -18,8 +18,8 @@ import {
 import {
   submitReflectionEdit,
   checkReflectionEdit,
+  segmentJewelry,
   imageEditConfigured,
-  EDIT_STAGES,
   type QueueTicket,
 } from "@/lib/image-edit";
 import { pixelDiffStats, isNoChange } from "@/lib/image-diff";
@@ -352,51 +352,6 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra):
   };
 }
 
-/** Descarga la imagen editada (URL temporal de fal), la optimiza y la guarda
- *  en NUESTRO Storage. Devuelve también el buffer para diff/auditoría. */
-async function storeEditedImage(
-  supabase: Awaited<ReturnType<typeof requireAdmin>>,
-  falUrl: string,
-): Promise<
-  | { ok: true; url: string; buf: Buffer; contentType: string }
-  | { ok: false; error: string }
-> {
-  try {
-    const resp = await fetch(falUrl, { signal: AbortSignal.timeout(20_000) });
-    if (!resp.ok) return { ok: false, error: `No se pudo descargar la imagen editada (${resp.status}).` };
-    const inBuf = Buffer.from(await resp.arrayBuffer());
-    let out = inBuf;
-    // Si sharp fallara, conservamos el content-type real que reporta fal.
-    let contentType = resp.headers.get("content-type") || "image/jpeg";
-    let ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-    try {
-      const sharp = (await import("sharp")).default;
-      out = await sharp(inBuf)
-        .rotate()
-        .resize(1400, 1400, { fit: "cover", position: "centre" })
-        .webp({ quality: 82 })
-        .toBuffer();
-      contentType = "image/webp";
-      ext = "webp";
-    } catch {
-      /* sin procesar */
-    }
-    const path = `products/clean-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, out, { contentType, upsert: false });
-    if (error) return { ok: false, error: error.message };
-    return {
-      ok: true,
-      url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl,
-      buf: out,
-      contentType,
-    };
-  } catch (err: any) {
-    return { ok: false, error: err?.message || "No se pudo guardar la imagen editada." };
-  }
-}
-
 /* --- Auditoría por CHECKLIST (anti-ruido) ---------------------------------
  * Antes se pedían números 0–100 libres a un LLM de visión: demasiado ruidoso
  * (dio fidelidad 90 a una pieza idealizada y reflejo 35 a una sin tocar).
@@ -723,10 +678,12 @@ export async function cleanupPhoto(): Promise<{ ok: false; error: string }> {
   };
 }
 
-/** Paso 1: encarga la CAPA 1 (quitar persona) a la cola de fal y devuelve el
- *  ticket al instante. Las capas siguientes las encadena `pollCleanup`. */
+/** Paso 1: encarga la edición del METAL a la cola de fal y devuelve el ticket
+ *  al instante. El feedback y la presión salen del mejor intento previo. */
 export async function startCleanup(
   imageUrl: string,
+  prevBest?: CleanupBest | null,
+  nextHint?: string,
 ): Promise<{ ok: true; ticket: QueueTicket } | { ok: false; error: string }> {
   await requireAdmin();
   if (!imageUrl) return { ok: false, error: "Sin imagen." };
@@ -737,24 +694,147 @@ export async function startCleanup(
         "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel para activar el borrado de reflejos.",
     };
   }
-  const sub = await submitReflectionEdit(imageUrl, { stage: 1 });
+  // Corto a propósito: los prompts largos paralizan al editor.
+  const extra = String(nextHint || prevBest?.feedback || "").slice(0, 300);
+  const prevRefl = prevBest?.reflectionRemoved;
+  const boldness =
+    prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
+  const sub = await submitReflectionEdit(imageUrl, {
+    extra: extra || undefined,
+    boldness,
+  });
   if (!sub.ok) return sub;
   return { ok: true, ticket: sub.data };
 }
 
-/** Paso 2 (repetible desde el cliente): consulta el ticket de la capa actual.
- *  Pendiente → {pending:true}. Capa lista → encadena la SIGUIENTE capa (con la
- *  salida anterior como entrada) y devuelve el nuevo ticket. Última capa lista
- *  → guarda en Storage, gate determinista, auditoría doble contra la ORIGINAL,
- *  y devuelve el MEJOR acumulado + métricas de ESTA ronda. */
+/* --- Utilidades del pipeline de composición (receta validada con test) ------ */
+
+const CANVAS = 1400;
+
+async function downloadBuf(url: string, ms: number): Promise<Buffer | null> {
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(ms) });
+    if (!r.ok) return null;
+    return Buffer.from(await r.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+async function normalizeCanvas(buf: Buffer): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  return sharp(buf)
+    .rotate()
+    .resize(CANVAS, CANVAS, { fit: "cover", position: "centre" })
+    .webp({ quality: 88 })
+    .toBuffer();
+}
+
+/** Compone el METAL editado sobre la foto ORIGINAL usando la máscara de la
+ *  joya (SAM 3): fuera del metal, la escena es la original píxel a píxel —
+ *  fidelidad matemática, no prometida por prompt. Devuelve null si la máscara
+ *  no es sensata (cobertura <0,5 % o >45 % del encuadre). */
+async function compositeJewelry(
+  origBuf: Buffer,
+  editedBuf: Buffer,
+  maskBufs: Buffer[],
+): Promise<Buffer | null> {
+  const sharp = (await import("sharp")).default;
+  const greys = await Promise.all(
+    maskBufs.map((m) =>
+      sharp(m).resize(CANVAS, CANVAS, { fit: "fill" }).greyscale().png().toBuffer(),
+    ),
+  );
+  let union = greys[0];
+  if (greys.length > 1) {
+    union = await sharp(greys[0])
+      .composite(greys.slice(1).map((input: Buffer) => ({ input, blend: "lighten" as const })))
+      .png()
+      .toBuffer();
+  }
+  const unionRaw = await sharp(union).greyscale().toColourspace("b-w").raw().toBuffer();
+  let on = 0;
+  for (let i = 0; i < unionRaw.length; i++) if (unionRaw[i] > 128) on++;
+  const coverage = on / unionRaw.length;
+  if (coverage < 0.005 || coverage > 0.45) return null;
+
+  // Feather + ligera dilatación para no dejar halo del reflejo viejo en el borde.
+  const featherRaw = await sharp(union)
+    .greyscale()
+    .blur(2)
+    .linear(1.35, 0)
+    .toColourspace("b-w")
+    .raw()
+    .toBuffer();
+  const editedRGB = await sharp(editedBuf).removeAlpha().raw().toBuffer();
+  const cutRaw = await sharp(editedRGB, { raw: { width: CANVAS, height: CANVAS, channels: 3 } })
+    .joinChannel(featherRaw, { raw: { width: CANVAS, height: CANVAS, channels: 1 } })
+    .raw()
+    .toBuffer();
+  return sharp(origBuf)
+    .composite([{ input: cutRaw, raw: { width: CANVAS, height: CANVAS, channels: 4 } }])
+    .webp({ quality: 88 })
+    .toBuffer();
+}
+
+/** «Cubo blanco» determinista (sin IA, no puede re-escenificar): balance de
+ *  blancos por canal calculado del marco exterior, con topes anti-quemado. */
+async function whiteAmbient(buf: Buffer): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  const s = 96;
+  const raw = await sharp(buf).resize(s, s, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  let r = 0,
+    g = 0,
+    b = 0,
+    n = 0;
+  const m = Math.round(s * 0.12);
+  for (let y = 0; y < s; y++) {
+    for (let x = 0; x < s; x++) {
+      if (x < m || x >= s - m || y < m || y >= s - m) {
+        const i = (y * s + x) * 3;
+        r += raw[i];
+        g += raw[i + 1];
+        b += raw[i + 2];
+        n++;
+      }
+    }
+  }
+  r /= n;
+  g /= n;
+  b /= n;
+  const target = 234;
+  const cl = (v: number) => Math.max(0.94, Math.min(1.22, target / Math.max(1, v)));
+  const gr = cl(r),
+    gg = cl(g),
+    gb = cl(b);
+  if (Math.abs(gr - 1) < 0.02 && Math.abs(gg - 1) < 0.02 && Math.abs(gb - 1) < 0.02) {
+    return buf;
+  }
+  return sharp(buf).linear([gr, gg, gb], [0, 0, 0]).webp({ quality: 88 }).toBuffer();
+}
+
+async function storeFinal(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>,
+  buf: Buffer,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const path = `products/clean-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, buf, { contentType: "image/webp", upsert: false });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl };
+}
+
+/** Paso 2 (repetible desde el cliente): consulta el ticket. Pendiente →
+ *  {pending:true}. Lista → descarga editada + original + máscara SAM 3 en
+ *  paralelo, COMPONE el metal editado sobre la original, aplica el «cubo
+ *  blanco» determinista, guarda, y audita (doble) contra la ORIGINAL. */
 export async function pollCleanup(
   imageUrl: string,
   ticket: QueueTicket,
-  stage: number,
   prevBest?: CleanupBest | null,
-  nextHint?: string,
 ): Promise<
-  | { ok: true; pending: true; ticket?: QueueTicket; stage?: number }
+  | { ok: true; pending: true }
   | (CleanupBest & {
       ok: true;
       pending: false;
@@ -772,66 +852,38 @@ export async function pollCleanup(
   if (!chk.ok) return { ok: false, error: chk.error };
   if (!chk.data.done) return { ok: true, pending: true };
 
-  // Capa terminada. ¿Quedan capas? → encadenar la siguiente con esta salida.
-  const currentStage = Math.max(1, Math.min(EDIT_STAGES, Math.round(stage) || 1));
-  if (currentStage < EDIT_STAGES) {
-    // Corto a propósito: los prompts largos paralizan al editor.
-    const extra = String(nextHint || prevBest?.feedback || "").slice(0, 300);
-    const prevRefl = prevBest?.reflectionRemoved;
-    const boldness =
-      prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
-    const nextStage = currentStage + 1;
-    const sub = await submitReflectionEdit(chk.data.imageUrl!, {
-      stage: nextStage,
-      extra: extra || undefined,
-      boldness,
-    });
-    if (!sub.ok) return sub;
-    return { ok: true, pending: true, ticket: sub.data, stage: nextStage };
+  // Descargas en paralelo: editada (fal), original y máscara de la joya (SAM 3).
+  const [editedRawBuf, origRawBuf, masksRes] = await Promise.all([
+    downloadBuf(chk.data.imageUrl!, 20_000),
+    downloadBuf(imageUrl, 15_000),
+    segmentJewelry(imageUrl),
+  ]);
+  if (!editedRawBuf) {
+    return { ok: false, error: "No se pudo descargar la imagen editada." };
+  }
+  let editedBuf: Buffer;
+  try {
+    editedBuf = await normalizeCanvas(editedRawBuf);
+  } catch {
+    editedBuf = editedRawBuf;
+  }
+  let originalBuf: Buffer | null = null;
+  if (origRawBuf) {
+    try {
+      originalBuf = await normalizeCanvas(origRawBuf);
+    } catch {
+      originalBuf = null; // sin canvas normalizado no hay composición fiable
+    }
   }
 
-  // Buffer de la original para el gate determinista (si falla, seguimos sin
-  // gate). Se normaliza por la MISMA tubería que la editada (recorte cuadrado
-  // 1400) para que el diff compare geometrías iguales. Se descarga EN PARALELO
-  // con la edición para no sumar latencias (presupuesto de 60 s por petición).
-  let originalBuf: Buffer | null = null;
-  let originalType = "image/webp";
-  const fetchOriginal = (async () => {
-    try {
-      const r = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
-      if (!r.ok) return;
-      const raw = Buffer.from(await r.arrayBuffer());
-      try {
-        const sharp = (await import("sharp")).default;
-        originalBuf = await sharp(raw)
-          .rotate()
-          .resize(1400, 1400, { fit: "cover", position: "centre" })
-          .webp({ quality: 82 })
-          .toBuffer();
-      } catch {
-        originalBuf = raw;
-        originalType = r.headers.get("content-type") || "image/webp";
-      }
-    } catch {
-      /* sin gate */
-    }
-  })();
-
-  // Guardado del resultado y descarga de la original EN PARALELO.
-  const [stored] = await Promise.all([
-    storeEditedImage(supabase, chk.data.imageUrl!),
-    fetchOriginal,
-  ]);
-  if (!stored.ok) return { ok: false, error: stored.error };
-
-  // Gate 1 (sin IA): ¿la edición no cambió nada? → sin gastar auditoría, y la
-  // siguiente ronda entra con presión máxima.
+  // Gate (sin IA), ANTES de componer: ¿el editor devolvió lo mismo? → presión.
   if (originalBuf) {
     try {
-      const diff = await pixelDiffStats(originalBuf, stored.buf);
+      const diff = await pixelDiffStats(originalBuf, editedBuf);
       if (isNoChange(diff)) {
+        const up = await storeFinal(supabase, editedBuf);
         const candidate: CleanupBest = {
-          cleanedUrl: stored.url,
+          cleanedUrl: up.ok ? up.url : imageUrl,
           safe: false,
           score: 5,
           fidelity: 100,
@@ -844,33 +896,63 @@ export async function pollCleanup(
           ok: true,
           pending: false,
           ...betterOf(best, candidate),
-          attempts: EDIT_STAGES,
+          attempts: 1,
           lastFeedback: BOLDER_FEEDBACK,
           round: { score: 5, fidelity: 100, reflectionRemoved: 0 },
         };
       }
     } catch {
-      /* gate no disponible; sigue la auditoría */
+      /* gate no disponible */
     }
   }
 
-  // Auditoría doble (con un reintento ante fallo transitorio: desperdiciar la
-  // edición ya pagada sería peor).
+  // COMPOSICIÓN: solo el metal viene de la IA; la escena es la original.
+  let finalBuf = editedBuf;
+  let composed = false;
+  if (originalBuf && masksRes.ok) {
+    try {
+      const maskBufs = (
+        await Promise.all(masksRes.data.slice(0, 4).map((u) => downloadBuf(u, 10_000)))
+      ).filter((b): b is Buffer => !!b);
+      if (maskBufs.length) {
+        const comp = await compositeJewelry(originalBuf, editedBuf, maskBufs);
+        if (comp) {
+          finalBuf = comp;
+          composed = true;
+        }
+      }
+    } catch {
+      /* sin composición: se usa la edición completa */
+    }
+  }
+
+  // Ambiente «cubo blanco» determinista.
+  try {
+    finalBuf = await whiteAmbient(finalBuf);
+  } catch {
+    /* sin ajuste de ambiente */
+  }
+
+  const up = await storeFinal(supabase, finalBuf);
+  if (!up.ok) return { ok: false, error: up.error };
+  const cleanedUrl = up.url;
+
+  // Auditoría doble contra la ORIGINAL (reintento único ante fallo transitorio).
   const auditBufs = {
-    orig: originalBuf ? { buf: originalBuf, type: originalType } : null,
-    edited: { buf: stored.buf, type: stored.contentType },
+    orig: originalBuf ? { buf: originalBuf, type: "image/webp" } : null,
+    edited: { buf: finalBuf, type: "image/webp" },
   };
-  let audit = await auditEdit(imageUrl, stored.url, auditBufs);
+  let audit = await auditEdit(imageUrl, cleanedUrl, auditBufs);
   if (!audit.ok && aiConfigured()) {
     await new Promise((r) => setTimeout(r, 1200));
-    audit = await auditEdit(imageUrl, stored.url, auditBufs);
+    audit = await auditEdit(imageUrl, cleanedUrl, auditBufs);
   }
   if (!audit.ok) {
     const cause = aiConfigured()
       ? `La auditoría falló en este intento (${audit.error.slice(0, 140)}).`
       : "No se pudo auditar (falta ANTHROPIC_API_KEY en Vercel); compárala tú antes de usarla.";
     const candidate: CleanupBest = {
-      cleanedUrl: stored.url,
+      cleanedUrl,
       safe: false,
       score: 0,
       changes: [cause],
@@ -882,21 +964,24 @@ export async function pollCleanup(
       pending: false,
       ...betterOf(best, candidate),
       note: cause,
-      attempts: EDIT_STAGES,
+      attempts: 1,
       lastFeedback: "",
       round: { score: 0 },
     };
   }
 
   const d = audit.data;
+  const noCompositeNote = composed
+    ? ""
+    : " · Sin máscara de composición en esta ronda: revisa también el fondo.";
   const candidate: CleanupBest = {
-    cleanedUrl: stored.url,
+    cleanedUrl,
     safe: d.publishable,
     score: d.score,
     fidelity: d.fidelity,
     reflectionRemoved: d.reflectionRemoved,
     changes: d.changes,
-    note: d.note,
+    note: (d.note || "") + noCompositeNote,
     feedback: d.feedback,
   };
   const result = candidate.safe ? candidate : betterOf(best, candidate);
@@ -915,7 +1000,7 @@ export async function pollCleanup(
     pending: false,
     ...result,
     note,
-    attempts: EDIT_STAGES,
+    attempts: 1,
     lastFeedback: d.feedback || "",
     round: { score: d.score, fidelity: d.fidelity, reflectionRemoved: d.reflectionRemoved },
   };

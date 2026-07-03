@@ -58,7 +58,7 @@ export default function ProductForm({
 
   // Bandera de parada del bucle automático, por foto.
   const stopRef = useRef<Record<string, boolean>>({});
-  const CAP_PER_RUN = 2; // rondas por pulsación (cada ronda = 3 capas Pro) — control de coste
+  const CAP_PER_RUN = 3; // rondas por pulsación (1 edición Pro por ronda) — control de coste
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   // Persistencia del mejor intento por foto: si Safari descarta la pestaña
@@ -143,8 +143,8 @@ export default function ProductForm({
     }
     try {
       while (!stopRef.current[url] && rounds < CAP_PER_RUN) {
-        // Paso 1: encargar la capa 1 a la cola (vuelve al instante).
-        const s = await startCleanup(url);
+        // Paso 1: encargar la edición del metal a la cola (vuelve al instante).
+        const s = await startCleanup(url, best, lastHint || undefined);
         if (!s || !s.ok) {
           const msg =
             s && !s.ok
@@ -153,15 +153,13 @@ export default function ProductForm({
           write((prev) => ({ ...prev[url], loading: false, stopping: false, error: msg }));
           return;
         }
-        // Paso 2: sondear; el servidor encadena las capas (persona → habitación
-        // → ambiente) devolviendo un ticket nuevo por capa.
-        let curTicket = s.ticket;
-        let curStage = 1;
-        let t0 = Date.now();
+        // Paso 2: sondear hasta que esté lista; el servidor compone entonces el
+        // metal editado sobre tu foto original y aplica el cubo blanco.
+        const t0 = Date.now();
         let r: Awaited<ReturnType<typeof pollCleanup>> | null = null;
         while (!stopRef.current[url]) {
           await sleep(3500);
-          const p = await pollCleanup(url, curTicket, curStage, best, lastHint || undefined);
+          const p = await pollCleanup(url, s.ticket, best);
           if (!p || !p.ok) {
             const msg =
               p && !p.ok
@@ -171,13 +169,7 @@ export default function ProductForm({
             return;
           }
           if (p.pending) {
-            if (p.ticket) {
-              // Capa terminada → empieza la siguiente.
-              curTicket = p.ticket;
-              curStage = p.stage ?? curStage + 1;
-              t0 = Date.now();
-              write((prev) => ({ ...prev[url], loading: true }));
-            } else if (Date.now() - t0 > 240_000) {
+            if (Date.now() - t0 > 240_000) {
               write((prev) => ({
                 ...prev[url],
                 loading: false,
@@ -674,11 +666,11 @@ export default function ProductForm({
               ),
             )}
             <span className="w-full text-[11px] text-muted/80">
-              Trabaja por capas con el editor más potente: 1) quita a la persona,
-              2) quita la habitación, 3) corrige el ambiente a blanco — y la auditoría
-              compara siempre contra tu original. Máx. {CAP_PER_RUN} rondas por
-              pulsación (~{CAP_PER_RUN * 3} ediciones) para controlar el gasto. Cada
-              ronda tarda 2-4 min: mantén la pantalla encendida.
+              La IA limpia el metal; después el sistema recorta la joya (máscara) y la
+              compone sobre TU foto original — el fondo y el cojín quedan intactos
+              píxel a píxel — y aplica un balance de blancos medido (sin IA). Máx.{" "}
+              {CAP_PER_RUN} ediciones por pulsación para controlar el gasto. Cada ronda
+              tarda 1-2 min: mantén la pantalla encendida.
             </span>
           </div>
         )}

@@ -26,52 +26,30 @@ export function imageEditConfigured(): boolean {
 const FAL_MODEL =
   process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-3-pro-image-preview/edit";
 
-/* --- PIPELINE POR CAPAS ------------------------------------------------------
- * REGLA EMPÍRICA de esta sesión: el editor clava órdenes CORTAS y únicas, y se
- * paraliza o se pasa con prompts largos multi-objetivo. Por eso: capas. -------
- * Cada capa es UNA orden pequeña y única (lo que este modelo clava); pedirlo
- * todo a la vez hacía que se quedara corto o se pasara. La cadena por ronda:
- *   1) quitar la PERSONA/móvil de los reflejos   (probado: funciona muy bien)
- *   2) quitar la HABITACIÓN (parches cálidos/oliva del metal)
- *   3) balance de blancos del AMBIENTE (cojín/fondo leyéndose blancos)
- * La auditoría final compara SIEMPRE contra la foto ORIGINAL, así la fidelidad
- * queda protegida de punta a punta de la cadena. ----------------------------- */
+/* --- ARQUITECTURA "IA SOLO DONDE ES IMPRESCINDIBLE" --------------------------
+ * La IA edita la imagen entera pero SOLO SE USA SU METAL: `pollCleanup`
+ * segmenta la joya (SAM 3) y compone el metal editado sobre la foto ORIGINAL
+ * píxel a píxel (fidelidad de escena matemática, no prometida por prompt), y
+ * el ambiente blanco se logra con balance de blancos determinista (sharp).
+ * Por eso el prompt del editor es UNO y corto: metal → estudio blanco. ------- */
 
-export const EDIT_STAGES = 3;
-
-const STAGE_PERSON =
-  "Edit this product photo of shiny polished metal jewelry. Completely REMOVE the reflection of the person, their phone and hands from the polished metal surfaces; repaint those reflected areas as a clean white photo studio (soft white with gentle highlights). " +
-  "Keep everything else EXACTLY as is: the same piece (shape, size, dents, hammered texture, same bright glossy mirror finish and colour), the same cushion, shadow, background, framing and camera angle. Photorealistic — the same photograph.";
-
-const STAGE_ROOM =
-  "In this product photo, the polished metal still mirrors parts of the ROOM: the darker warm, olive or brown patches visible on the metal. Repaint ONLY those warm/dark reflected patches as clean white-studio reflection, so the metal shows just bright white highlights and its own clean light tone. " +
-  "Touch nothing else: same piece (shape, size, dents, hammered texture, same glossy mirror finish and colour), same cushion, shadow, background, framing and angle. Photorealistic — the same photograph.";
-
-const STAGE_AMBIENT =
-  "Apply a gentle white-balance correction to this product photo so the cushion and the background read clean, bright white (remove the warm/grey colour cast). " +
-  "Do NOT re-stage anything: exact same camera angle, framing, cushion position and wrinkles, the same cast shadow, and the jewelry completely untouched (same shape, colour and glossy finish). The same real photograph, not a render.";
-
-const STAGE_PROMPTS = [STAGE_PERSON, STAGE_ROOM, STAGE_AMBIENT];
+const METAL_PROMPT =
+  "This product photo shows polished metal jewelry whose mirror surface reflects the photographer and the room. Repaint what the METAL reflects: remove the person, their phone and hands, and every warm, olive or brown room patch from the metal surfaces, so the metal shows a clean white photo-studio reflection — bright white highlights blending into the metal's own light tone. " +
+  "Keep the piece itself exactly the same: shape, size, proportions, dents and hammered texture, same colour, same bright glossy mirror finish (never dull or matte). Keep the rest of the photo (cushion, shadow, background, framing) unchanged. Photorealistic — the same photograph.";
 
 export interface EditPromptOpts {
   seed?: number;
-  /** Capa 1..3 (persona / habitación / ambiente). */
-  stage?: number;
   extra?: string;
   boldness?: number;
 }
 
-function buildStagePrompt(opts: EditPromptOpts): string {
-  const idx = Math.max(1, Math.min(EDIT_STAGES, opts.stage ?? 1)) - 1;
-  // El feedback/presión solo aplica a la capa de la habitación (la difícil);
-  // las otras dos funcionan mejor sin ruido añadido.
-  if (idx !== 1) return STAGE_PROMPTS[idx];
+function buildMetalPrompt(opts: EditPromptOpts): string {
   const boldness =
     BOLDNESS_SUFFIXES[
       Math.max(0, Math.min(BOLDNESS_SUFFIXES.length - 1, opts.boldness ?? 0))
     ];
   return (
-    STAGE_PROMPTS[idx] +
+    METAL_PROMPT +
     boldness +
     (opts.extra ? `\n\nAlso fix specifically: ${opts.extra}` : "")
   );
@@ -85,16 +63,13 @@ const BOLDNESS_SUFFIXES = [
   "\n\nIMPORTANT: previous attempts barely changed the reflections. The mirrored person and room MUST be gone this time — repaint every reflection on the metal as white studio.",
 ];
 
-/** Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
- *  `strategy`: índice de la formulación a usar (0 = directa probada, 1 = cubo
- *  blanco). Cada ronda lanza ambas en paralelo y la auditoría elige.
- *  `extra`: ajuste TEMPORAL de instrucción para ESTE intento (viene de la
- *  auditoría). NO modifica los prompts base: se concatena solo en esta llamada.
- *  `boldness` (0-2): coletilla corta de presión cuando los intentos previos
- *  salieron tímidos. `seed`: solo lo usa la rama FLUX. */
+/** [LEGADO — el flujo principal usa la cola; queda como vía síncrona de
+ *  reserva.] Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
+ *  `extra`: ajuste TEMPORAL para ESTE intento (no toca el prompt base).
+ *  `boldness` (0-2): coletilla corta de presión. `seed`: solo rama FLUX. */
 export async function removeReflection(
   imageUrl: string,
-  opts: { seed?: number; strategy?: number; extra?: string; boldness?: number } = {},
+  opts: EditPromptOpts = {},
 ): Promise<AiResult<string>> {
   const key = process.env.FAL_KEY;
   if (!key) {
@@ -105,7 +80,7 @@ export async function removeReflection(
     };
   }
   const isGemini = FAL_MODEL.includes("gemini");
-  const prompt = buildStagePrompt(opts);
+  const prompt = buildMetalPrompt(opts);
   // Gemini ("nano-banana") usa image_urls[]; FLUX Kontext usa image_url + params.
   const body = isGemini
     ? { prompt, image_urls: [imageUrl] }
@@ -192,7 +167,7 @@ export function isFalQueueUrl(url: string): boolean {
 
 function buildEditBody(imageUrl: string, opts: EditPromptOpts) {
   const isGemini = FAL_MODEL.includes("gemini");
-  const prompt = buildStagePrompt(opts);
+  const prompt = buildMetalPrompt(opts);
   return isGemini
     ? { prompt, image_urls: [imageUrl] }
     : {
@@ -311,5 +286,53 @@ export async function checkReflectionEdit(
       return { ok: false, error: "La consulta del estado tardó demasiado. Se reintentará." };
     }
     return { ok: false, error: err?.message || "Error consultando la edición." };
+  }
+}
+
+/* --- Segmentación de la joya (SAM 3, prompt de texto) ------------------------
+ * Devuelve las URLs de las máscaras binarias (blanco = joya) para que
+ * `pollCleanup` componga el metal editado sobre la foto original. ----------- */
+
+export async function segmentJewelry(
+  imageUrl: string,
+): Promise<AiResult<string[]>> {
+  const key = process.env.FAL_KEY;
+  if (!key) return { ok: false, error: "Falta FAL_KEY en el servidor." };
+  try {
+    const res = await fetch("https://fal.run/fal-ai/sam-3/image", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Key ${key}`,
+      },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        prompt: "jewelry",
+        apply_mask: false,
+        output_format: "png",
+        max_masks: 4,
+      }),
+      signal: AbortSignal.timeout(25_000),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      return {
+        ok: false,
+        error: `La segmentación de la joya falló (${res.status}). ${detail.slice(0, 120)}`,
+      };
+    }
+    const data = (await res.json()) as { masks?: { url?: string }[] };
+    const urls = (data.masks ?? [])
+      .map((m) => m.url)
+      .filter((u): u is string => typeof u === "string" && u.length > 0);
+    if (!urls.length) {
+      return { ok: false, error: "La segmentación no encontró la joya en la foto." };
+    }
+    return { ok: true, data: urls };
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+      return { ok: false, error: "La segmentación tardó demasiado." };
+    }
+    return { ok: false, error: err?.message || "Error en la segmentación." };
   }
 }

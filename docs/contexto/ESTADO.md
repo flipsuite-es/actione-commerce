@@ -107,6 +107,15 @@ backoffice completos y funcionando.
        podía invocar las acciones de IA y gastar crédito).
      Modelo por defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`, `image_urls[]`);
      Gemini 3 Pro es más lento (timeouts en Hobby) → `FAL_IMAGE_MODEL` solo con funciones largas. Kontext usa `image_url`.
+     · **5ª iteración (2026-07-03) — ARQUITECTURA FINAL: COMPOSICIÓN POR MÁSCARA.** La IA edita la imagen entera pero
+       SOLO SE USA SU METAL: `pollCleanup` descarga en paralelo la editada + la original + la **máscara de la joya**
+       (**SAM 3**, `fal-ai/sam-3/image`, prompt "jewelry", hasta 4 máscaras unidas) y **compone** el metal editado sobre
+       la foto ORIGINAL (receta sharp validada con test: unión lighten → feather blur(2)+linear(1.35) → joinChannel
+       alfa crudo 1 canal → composite raw → webp). Fuera del metal la escena es la original **píxel a píxel** —
+       fidelidad matemática. El «cubo blanco» del ambiente es **balance de blancos determinista** (ganancias por canal
+       del marco exterior, topes 0.94–1.22, no puede re-escenificar). Cordura de máscara: cobertura 0,5–45 % o no se
+       compone (y se avisa en la nota). Prompt del editor: UNO y corto (metal → estudio blanco). 3 ediciones por
+       pulsación. Si el editor re-escenificara, la composición dejaría la joya "desaparecida" y la auditoría lo caza.
      · **4ª iteración (2026-07-03) — COLA ASÍNCRONA + MODELO PRO.** Flash seguía devolviendo la foto intacta incluso con
        el prompt probado; el modelo capaz (Gemini 3 Pro) solo fallaba por el límite de 60 s. Solución: **cola de fal**
        (`queue.fal.run`): `startCleanup` encarga la edición y devuelve un ticket (guard anti-SSRF: solo URLs de
