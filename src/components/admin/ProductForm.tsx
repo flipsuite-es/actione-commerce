@@ -33,6 +33,8 @@ interface PhotoCleanup {
   feedback?: string; // feedback del mejor intento
   lastFeedback?: string; // feedback del ÚLTIMO intento (guía el siguiente)
   lastRound?: { score: number; fidelity?: number; reflectionRemoved?: number };
+  /** Edición encargada y aún en cola: se retoma sin pagar otra. */
+  pendingTicket?: { statusUrl: string; responseUrl: string };
   error?: string;
   attempts?: number; // acumulado (todas las tandas)
 }
@@ -68,7 +70,11 @@ export default function ProductForm({
   function persistCleanup(url: string, entry: PhotoCleanup) {
     try {
       const { loading, stopping, error, ...rest } = entry;
-      if (rest.cleanedUrl) localStorage.setItem(CLEANUP_LS + url, JSON.stringify(rest));
+      // Se persiste si hay resultado O una edición encargada pendiente (para
+      // retomarla tras recarga sin pagar otra).
+      if (rest.cleanedUrl || rest.pendingTicket) {
+        localStorage.setItem(CLEANUP_LS + url, JSON.stringify(rest));
+      }
     } catch {
       /* almacenamiento no disponible */
     }
@@ -142,25 +148,49 @@ export default function ProductForm({
       /* sin wake lock */
     }
     try {
+      // Si quedó una edición encargada (cola lenta, corte, recarga), se RETOMA
+      // ese ticket en vez de pagar otra edición.
+      let resumeTicket = current?.pendingTicket ?? null;
       while (!stopRef.current[url] && rounds < CAP_PER_RUN) {
-        // Paso 1: encargar la edición del metal a la cola (vuelve al instante).
-        const s = await startCleanup(url, best, lastHint || undefined);
-        if (!s || !s.ok) {
-          const msg =
-            s && !s.ok
-              ? s.error
-              : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.";
-          write((prev) => ({ ...prev[url], loading: false, stopping: false, error: msg }));
-          return;
+        let ticket: { statusUrl: string; responseUrl: string };
+        let wasResumed = false;
+        if (resumeTicket) {
+          ticket = resumeTicket;
+          resumeTicket = null;
+          wasResumed = true;
+        } else {
+          // Paso 1: encargar la edición del metal a la cola (vuelve al instante).
+          const s = await startCleanup(url, best, lastHint || undefined);
+          if (!s || !s.ok) {
+            const msg =
+              s && !s.ok
+                ? s.error
+                : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.";
+            write((prev) => ({ ...prev[url], loading: false, stopping: false, error: msg }));
+            return;
+          }
+          ticket = s.ticket;
         }
+        // El ticket se guarda (y persiste) para poder retomarlo sin re-pagar.
+        write((prev) => ({ ...prev[url], loading: true, pendingTicket: ticket }));
+        if (best) persistCleanup(url, { ...best, lastFeedback: lastHint, attempts: total, pendingTicket: ticket });
+
         // Paso 2: sondear hasta que esté lista; el servidor compone entonces el
         // metal editado sobre tu foto original y aplica el cubo blanco.
         const t0 = Date.now();
         let r: Awaited<ReturnType<typeof pollCleanup>> | null = null;
+        let pollFailed = false;
         while (!stopRef.current[url]) {
           await sleep(3500);
-          const p = await pollCleanup(url, s.ticket, best);
+          const p = await pollCleanup(url, ticket, best);
           if (!p || !p.ok) {
+            // Un ticket retomado puede haber caducado: se descarta y se encarga
+            // una edición nueva en esta misma ronda.
+            if (wasResumed) {
+              pollFailed = true;
+              write((prev) => ({ ...prev[url], pendingTicket: undefined }));
+              break;
+            }
             const msg =
               p && !p.ok
                 ? p.error
@@ -169,12 +199,19 @@ export default function ProductForm({
             return;
           }
           if (p.pending) {
-            if (Date.now() - t0 > 240_000) {
+            if (Date.now() - t0 > 480_000) {
+              persistCleanup(url, {
+                ...(best ?? {}),
+                lastFeedback: lastHint,
+                attempts: total,
+                pendingTicket: ticket,
+              });
               write((prev) => ({
                 ...prev[url],
                 loading: false,
                 stopping: false,
-                error: "El editor está tardando demasiado. Pulsa «Seguir probando» para reintentar.",
+                error:
+                  "El editor sigue en cola (va lento hoy). Pulsa «Seguir probando»: retomará esta misma edición sin pagar otra.",
               }));
               return;
             }
@@ -183,6 +220,7 @@ export default function ProductForm({
           r = p;
           break;
         }
+        if (pollFailed) continue; // ticket caducado → nueva edición en esta ronda
         if (!r || r.pending) break; // parado por el usuario
         rounds += 1;
         total += r.attempts;
