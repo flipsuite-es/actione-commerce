@@ -85,8 +85,10 @@ backoffice completos y funcionando.
      intacto. **Publicable = fidelidad ≥85 + reflejo ≥80 + no engañosa.** La auditoría además genera **feedback** (en
      inglés) y el bucle **reajusta la instrucción del editor en el siguiente intento** (ajuste TEMPORAL concatenado al
      `REFLECTION_PROMPT` base, que NO se modifica). **Bucle automático en el cliente:** reintenta SOLO hasta publicable o
-     `AUTO_CAP=10` intentos; muestra calidad + «reflejo limpiado X/100» + «fidelidad Y/100», botón «Parar». Usa **FLUX
-     Kontext MAX** (`FAL_IMAGE_MODEL` para forzar otro). OJO: la gota pulida es el peor caso. `maxDuration=60`.
+     `AUTO_CAP=10` intentos; muestra calidad + «reflejo limpiado X/100» + «fidelidad Y/100», botón «Parar». Modelo por
+     defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`, mejor quitando personas/
+     reflejos; usa `image_urls[]`); override `FAL_IMAGE_MODEL` (p. ej. Kontext MAX, usa `image_url`). OJO: la gota
+     totalmente pulida es el peor caso (con Kontext se quedó en reflejo ~35/100). `maxDuration=60`.
   6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): procesado **determinista** con sharp (ajustes GLOBALES
      de luz/contraste/saturación/nitidez, como el "editar" del móvil). NO usa IA generativa: no inventa píxeles ni cambia
      forma/color/acabado → **nunca es publicidad engañosa**. Gratis, instantáneo, sin claves. Botón «Mejorar calidad» por

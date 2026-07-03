@@ -19,15 +19,15 @@ export function imageEditConfigured(): boolean {
   return !!process.env.FAL_KEY;
 }
 
-// FLUX Kontext MAX = variante premium (mejor preservación/calidad) para el caso
-// difícil de la joya espejada. Se puede forzar otro modelo con FAL_IMAGE_MODEL.
-const FAL_MODEL = process.env.FAL_IMAGE_MODEL || "fal-ai/flux-pro/kontext/max";
+// Modelo de edición. Por defecto Gemini 2.5 Flash Image ("nano-banana"), muy
+// bueno quitando personas/reflejos manteniendo el sujeto. Override: FAL_IMAGE_MODEL
+// (p. ej. "fal-ai/flux-pro/kontext/max").
+const FAL_MODEL = process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-25-flash-image/edit";
 
 const REFLECTION_PROMPT =
-  "Retouch this jewelry product photo so it looks as if it was shot inside a clean white light tent, with large plain white cards all around the front. The polished metal should therefore reflect ONLY smooth, clean, pure WHITE and soft warm highlights — as if everything in front of the piece were a plain white surface. " +
-  "This means: wherever the metal currently shows a reflection of a person, photographer, hands, phone, camera or the room, replace that reflected content with clean white / soft warm-white studio reflection. Keep natural bright specular highlights. " +
-  "CRITICAL — keep the metal itself EXACTLY the same: a bright, warm, highly polished mirror gold-tone (or silver-tone) finish. Do NOT dull, darken, desaturate, matte, tarnish or muddy it; do NOT add green, grey, brown or dirty tones. " +
-  "Preserve EXACTLY the piece's shape, size and proportions, the warm sunlight and shadows, and the white pillow and background. Do NOT add gemstones and do NOT hide real scratches or dents. Photorealistic, minimal surgical edit — only the reflected content on the metal becomes clean white.";
+  "Edit this product photo of shiny gold-tone metal jewelry. COMPLETELY REMOVE every reflection of the person, photographer, hands, phone, camera and the room from the polished metal surfaces. Replace those reflections with the clean, smooth reflection of a plain white photo studio — soft white with gentle warm highlights — exactly as if the jewelry had been photographed inside a white light tent surrounded by plain white cards. There must be NO recognisable person or object reflected anywhere on the metal. " +
+  "Keep the jewelry itself 100% identical: same shape, size, proportions and position, and the SAME bright, warm, glossy mirror gold-tone (or silver-tone) finish. Do NOT make the metal duller, darker, greyer, greener, browner or matte; do NOT change its colour; keep it looking like clean shiny polished metal with crisp highlights. " +
+  "Keep the white pillow and background clean and bright. Do NOT add gemstones and do NOT hide real scratches or dents on the piece. Photorealistic result.";
 
 /** Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
  *  `seed`: varíala entre reintentos para resultados distintos.
@@ -46,6 +46,22 @@ export async function removeReflection(
         "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel (Settings → Environment Variables) para activar el borrado de reflejos.",
     };
   }
+  const prompt = opts.extra
+    ? `${REFLECTION_PROMPT}\n\nAlso, fix this specifically in this attempt: ${opts.extra}`
+    : REFLECTION_PROMPT;
+  const isGemini = FAL_MODEL.includes("gemini");
+  // Gemini ("nano-banana") usa image_urls[]; FLUX Kontext usa image_url + params.
+  const body = isGemini
+    ? { prompt, image_urls: [imageUrl], num_images: 1 }
+    : {
+        prompt,
+        image_url: imageUrl,
+        guidance_scale: 3.5,
+        num_inference_steps: 32,
+        safety_tolerance: "2",
+        output_format: "jpeg",
+        ...(opts.seed != null ? { seed: opts.seed } : {}),
+      };
   try {
     const res = await fetch(`https://fal.run/${FAL_MODEL}`, {
       method: "POST",
@@ -53,19 +69,7 @@ export async function removeReflection(
         "content-type": "application/json",
         authorization: `Key ${key}`,
       },
-      body: JSON.stringify({
-        prompt: opts.extra
-          ? `${REFLECTION_PROMPT}\n\nADJUSTMENTS FOR THIS ATTEMPT (fix these specifically, keep everything else): ${opts.extra}`
-          : REFLECTION_PROMPT,
-        image_url: imageUrl,
-        // Guidance bajo = se mantiene más pegado a la foto original (menos
-        // "invención" del acabado, que era lo que apagaba el dorado).
-        guidance_scale: 2.5,
-        num_inference_steps: 32,
-        safety_tolerance: "2",
-        output_format: "jpeg",
-        ...(opts.seed != null ? { seed: opts.seed } : {}),
-      }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
