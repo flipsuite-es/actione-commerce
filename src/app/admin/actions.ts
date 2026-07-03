@@ -1088,7 +1088,49 @@ interface EnhanceParams {
   c: number; // contraste (1.0–1.12)
   sat: number; // saturación (0.96–1.14)
   sigma: number; // nitidez (0.4–1.5)
+  glare: number; // recuperación de altas luces del ENTORNO (0–0.9)
   note: string;
+}
+
+/** Comprime el brillo EXCESIVO de las zonas claras y POCO saturadas (fondo,
+ *  cojín, glare) SIN tocar la joya (protegida por su saturación) ni los medios.
+ *  Máscara = brillo alto × baja saturación. Validado con test (fondo 250→156,
+ *  oro saturado 215→215). Devuelve webp. */
+async function compressHighlights(
+  buf: Buffer,
+  strength: number,
+  W: number,
+  H: number,
+): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  const threshold = 205;
+  const k = 255 / (255 - threshold);
+  const raw = await sharp(buf).removeAlpha().raw().toBuffer();
+  const alpha = Buffer.alloc(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const r = raw[i * 3], g = raw[i * 3 + 1], b = raw[i * 3 + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    const sat = (mx - mn) / (mx + 1);
+    const bright = Math.max(0, Math.min(1, ((lum - threshold) * k) / 255));
+    const desat = Math.max(0, Math.min(1, 1 - sat * 3)); // sat>0.33 → protege joya
+    alpha[i] = Math.round(bright * desat * strength * 255);
+  }
+  const alphaB = await sharp(alpha, { raw: { width: W, height: H, channels: 1 } })
+    .blur(2)
+    .raw()
+    .toBuffer();
+  const dark = await sharp(buf).removeAlpha().linear(0.5, 0).raw().toBuffer();
+  const darkRGBA = await sharp(dark, { raw: { width: W, height: H, channels: 3 } })
+    .joinChannel(alphaB, { raw: { width: W, height: H, channels: 1 } })
+    .png()
+    .toBuffer();
+  return sharp(buf)
+    .removeAlpha()
+    .composite([{ input: darkRGBA }])
+    .removeAlpha()
+    .webp({ quality: 90 })
+    .toBuffer();
 }
 
 /** Parámetros de revelado a partir SOLO de la medición (fallback sin IA). */
@@ -1103,6 +1145,8 @@ function paramsFromStats(a: {
   if (a.clip > 0.5) exp = Math.min(exp, 0.82);
   else if (a.clip > 0.25) exp = Math.min(exp, 0.9);
   exp = Math.max(0.7, Math.min(1.3, exp));
+  // Glare del entorno: más recuperación cuanto más quemado hay.
+  const glare = a.clip > 0.4 ? 0.85 : a.clip > 0.2 ? 0.65 : a.clip > 0.06 ? 0.45 : a.p95 > 249 ? 0.35 : 0.15;
   return {
     exp,
     rMul: wb(a.bright.r),
@@ -1111,7 +1155,8 @@ function paramsFromStats(a: {
     c: 1.13,
     sat: 1.14,
     sigma: 1.4,
-    note: "Ajuste medido (exposición, balance de blancos, contraste, saturación y nitidez).",
+    glare,
+    note: "Ajuste medido (exposición, balance de blancos, contraste, saturación, nitidez y control del brillo del fondo).",
   };
 }
 
@@ -1129,6 +1174,7 @@ Devuelve EXCLUSIVAMENTE un JSON con estos campos (números en los rangos indicad
  "contrast": <0..1, cuánto contraste añadir>,
  "saturation": <0..1, 0.5 = neutro; <0.5 desatura, >0.5 satura un poco>,
  "sharpen": <0..1, más si la foto está algo blanda>,
+ "glare": <0..1, cuánto BRILLO EXCESIVO hay en el ENTORNO/fondo/cojín (no en la joya): 0 si el fondo está bien, alto si el fondo está quemado, deslumbrante o con zonas blancas reventadas. Solo mira el fondo y el entorno, NO el brillo propio de la joya>,
  "note": "una frase muy breve en español de qué has corregido"}
 Apunta a valores con presencia (contraste ~0.5–0.8, saturación ~0.55–0.7, sharpen ~0.5–0.8) salvo que la foto ya esté perfecta. Natural pero con el "punch" de una foto de catálogo.`;
 
@@ -1139,6 +1185,7 @@ Apunta a valores con presencia (contraste ~0.5–0.8, saturación ~0.55–0.7, s
     contrast?: number | string;
     saturation?: number | string;
     sharpen?: number | string;
+    glare?: number | string;
     note?: string;
   }>({
     system,
@@ -1165,6 +1212,7 @@ Apunta a valores con presencia (contraste ~0.5–0.8, saturación ~0.55–0.7, s
   const contrast = cl(num(r.data.contrast), 0, 1);
   const saturation = cl(num(r.data.saturation, 0.5), 0, 1);
   const sharpen = cl(num(r.data.sharpen, 0.4), 0, 1);
+  const glare = cl(num(r.data.glare, 0.2), 0, 1);
   return {
     exp: cl(1 + exposure * 0.28, 0.7, 1.3),
     rMul: cl(1 + warmth * 0.06, 0.88, 1.14),
@@ -1173,6 +1221,7 @@ Apunta a valores con presencia (contraste ~0.5–0.8, saturación ~0.55–0.7, s
     c: cl(1 + contrast * 0.2, 1.0, 1.2), // hasta 1.20 (con pivote alto no quema el blanco)
     sat: cl(0.98 + saturation * 0.26, 0.96, 1.24),
     sigma: cl(0.5 + sharpen * 1.8, 0.5, 2.3),
+    glare: cl(glare * 0.9, 0, 0.9),
     note: String(r.data.note || "").slice(0, 160) || "Revelado con IA.",
   };
 }
@@ -1210,7 +1259,7 @@ export async function enhancePhoto(
     const pivot = Math.max(140, Math.min(215, stats.p95 * p.exp - 30));
     const off = pivot * (1 - p.c);
     // Todo fundido en UN linear (sharp solo aplica el último .linear()).
-    const out = await sharp(base)
+    let out = await sharp(base)
       .linear(
         [p.c * p.rMul * p.exp, p.c * p.gMul * p.exp, p.c * p.bMul * p.exp],
         [off, off, off],
@@ -1221,6 +1270,12 @@ export async function enhancePhoto(
       .sharpen({ sigma: p.sigma, m1: 0.4, m2: 2.6 })
       .webp({ quality: 90 })
       .toBuffer();
+
+    // Rebaja el brillo EXCESIVO del entorno (fondo/cojín/glare) protegiendo la
+    // joya (por saturación). El lienzo es 1400×1400 (resize cover fijo).
+    if (p.glare > 0.08) {
+      out = await compressHighlights(out, p.glare, 1400, 1400);
+    }
 
     const path = `products/enh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
     const { error } = await supabase.storage

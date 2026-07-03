@@ -146,15 +146,22 @@ backoffice completos y funcionando.
        auto-amortigua si se pasa de frenada, porque la auditoría capa los excesos y el reflejo alto baja la audacia).
        La auditoría se calibró para NO confundir el aclarado global esperado (reflejar estudio blanco = pieza más
        luminosa) con «metal_color shifted»: shifted solo si el TONO vira (pálido/verdoso/rosado).
-  6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): procesado **determinista** con sharp (ajustes GLOBALES
-     de luz/contraste/saturación/nitidez, como el "editar" del móvil). NO usa IA generativa: no inventa píxeles ni cambia
-     forma/color/acabado → **nunca es publicidad engañosa**. Gratis, instantáneo, sin claves. Botón «Mejorar calidad» por
-     foto con antes/después y el admin aprueba. Sirve para exposición/nitidez, NO arregla desenfoque ni composición. Guarda la editada en nuestro Storage y luego
-     **Claude audita** comparando original vs editada: si detecta que se ha alterado el producto, la marca **no segura**.
-     La original NUNCA se borra; en la ficha se muestran las dos lado a lado con el veredicto y **el admin aprueba**
-     («Usar la corregida» / «Quedarme con la original»). Anti-publicidad-engañosa por diseño (triple red: instrucción
-     estricta + auditoría IA + aprobación humana). Sin `FAL_KEY` el botón no aparece. `maxDuration=60` en las páginas de
-     producto (editar+auditar tarda).
+  6. **Mejorar calidad de foto** (`enhancePhoto` + `ProductForm`): **Claude MIRA la foto** (`paramsFromAI`, visión
+     `claude-opus-4-8`, ~1-2 cts) con las medidas reales como contexto (`analyzePhoto`: p95, % quemado, color de las
+     luces) y decide el revelado — si está muy brillante la baja, si está oscura la sube, corrige la dominante de color,
+     y valora el **brillo excesivo del ENTORNO** (fondo/cojín/glare, no de la joya). Si falta `ANTHROPIC_API_KEY` o
+     falla, cae al análisis medido (`paramsFromStats`, gratis). Esos ajustes se aplican con procesado **determinista**
+     (sharp): exposición + balance de blancos + contraste (pivote alto, protege el blanco) **fundidos en UN `.linear()`**
+     (sharp solo aplica el último), `modulate` saturación y `sharpen` con microcontraste. NO usa IA generativa: no
+     inventa píxeles ni cambia forma/color/acabado → **nunca es publicidad engañosa**.
+     - **Rebaja del brillo excesivo del fondo** (`compressHighlights`, jul-2026): comprime las altas luces de las zonas
+       **claras Y poco saturadas** (fondo, cojín, reflejos quemados) protegiendo la joya (la máscara = brillo × baja
+       saturación, así el oro saturado no se toca). Se centra en «lo que no es la joya» como pidió el usuario. La fuerza
+       (`glare`) la decide Claude viendo la foto (0–0.9). Validado con test: fondo blanco 250→156, oro saturado 215→215.
+     Botón «Mejorar calidad» por foto con antes/después + «La IA vio: {note}»; el admin aprueba. Guarda la editada en
+     nuestro Storage. La original NUNCA se borra; en la ficha se muestran las dos lado a lado y **el admin aprueba**
+     («Usar la corregida» / «Quedarme con la original»). Anti-publicidad-engañosa por diseño (ajustes solo de tono/color
+     + aprobación humana). `maxDuration=60` en las páginas de producto.
 - **Multi-proveedor** (migración **011**): tabla `suppliers` (nombre, contacto, email, teléfono, web, notas, plazo,
   pedido mínimo, activo; RLS solo `is_admin`) + `products.supplier_id` (FK). CRUD en **`/admin/proveedores`**. La ficha
   de producto tiene selector de proveedor + ref. Sembrado **Smile Joyas** como proveedor inicial. Pensado para crecer a
