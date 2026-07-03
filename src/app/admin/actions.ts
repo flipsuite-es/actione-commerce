@@ -15,7 +15,12 @@ import {
   BRAND_RULES,
   type AiImageBlock,
 } from "@/lib/ai";
-import { removeReflection, imageEditConfigured } from "@/lib/image-edit";
+import {
+  submitReflectionEdit,
+  checkReflectionEdit,
+  imageEditConfigured,
+  type QueueTicket,
+} from "@/lib/image-edit";
 import { pixelDiffStats, isNoChange } from "@/lib/image-diff";
 import { getStoreSnapshot } from "@/lib/admin-data";
 
@@ -346,24 +351,17 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra):
   };
 }
 
-/** Edita una imagen (quita reflejo) y la guarda en NUESTRO Storage. Un intento.
- *  `extra` = ajuste temporal de instrucción para este intento (de la auditoría).
- *  Devuelve también el buffer procesado para el diff determinista. */
-async function editAndStore(
+/** Descarga la imagen editada (URL temporal de fal), la optimiza y la guarda
+ *  en NUESTRO Storage. Devuelve también el buffer para diff/auditoría. */
+async function storeEditedImage(
   supabase: Awaited<ReturnType<typeof requireAdmin>>,
-  imageUrl: string,
-  seed: number,
-  extra?: string,
-  boldness?: number,
-  strategy?: number,
+  falUrl: string,
 ): Promise<
   | { ok: true; url: string; buf: Buffer; contentType: string }
   | { ok: false; error: string }
 > {
-  const edited = await removeReflection(imageUrl, { seed, extra, boldness, strategy });
-  if (!edited.ok) return { ok: false, error: edited.error };
   try {
-    const resp = await fetch(edited.data, { signal: AbortSignal.timeout(20_000) });
+    const resp = await fetch(falUrl, { signal: AbortSignal.timeout(20_000) });
     if (!resp.ok) return { ok: false, error: `No se pudo descargar la imagen editada (${resp.status}).` };
     const inBuf = Buffer.from(await resp.arrayBuffer());
     let out = inBuf;
@@ -715,18 +713,24 @@ function betterOf(a: CleanupBest | null, b: CleanupBest): CleanupBest {
   return b.score > a.score ? b : a;
 }
 
-/** Un intento de borrado de reflejo: edita → gate determinista (¿cambió algo?)
- *  → auditoría doble → devuelve el MEJOR acumulado + el feedback del ÚLTIMO
- *  intento (para que el siguiente afine aunque este haya sido peor). */
-export async function cleanupPhoto(
+/** [LEGADO] Stub para pestañas que aún tengan cargada la versión anterior. */
+export async function cleanupPhoto(): Promise<{ ok: false; error: string }> {
+  await requireAdmin();
+  return {
+    ok: false,
+    error: "La app se ha actualizado. Recarga la página para usar el nuevo editor.",
+  };
+}
+
+/** Paso 1: encarga UNA edición a la COLA de fal (modelo Pro, sin el límite de
+ *  60 s del modo síncrono) y devuelve el ticket al instante. La estrategia y
+ *  la audacia se deciden aquí a partir del mejor intento previo. */
+export async function startCleanup(
   imageUrl: string,
   prevBest?: CleanupBest | null,
   nextHint?: string,
-): Promise<
-  | (CleanupBest & { ok: true; attempts: number; lastFeedback: string })
-  | { ok: false; error: string }
-> {
-  const supabase = await requireAdmin();
+): Promise<{ ok: true; ticket: QueueTicket } | { ok: false; error: string }> {
+  await requireAdmin();
   if (!imageUrl) return { ok: false, error: "Sin imagen." };
   if (!imageEditConfigured()) {
     return {
@@ -735,18 +739,48 @@ export async function cleanupPhoto(
         "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel para activar el borrado de reflejos.",
     };
   }
-
-  const best: CleanupBest | null = prevBest ?? null;
-  // Ajuste TEMPORAL de instrucción para este intento: el feedback del último
-  // intento (nextHint) manda; si no hay, el del mejor. Nunca toca el prompt base.
   // Corto a propósito: los prompts largos paralizan al editor (evidencia real).
   const extra = String(nextHint || prevBest?.feedback || "").slice(0, 300);
-  // Audacia escalonada: si el mejor intento previo fue TÍMIDO (producto intacto
-  // pero reflejo sin quitar), el editor necesita presión, no más cautela. La
-  // fidelidad la protege la auditoría, que rechaza los excesos.
   const prevRefl = prevBest?.reflectionRemoved;
   const boldness =
     prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
+  const seed = Math.floor(Math.random() * 1_000_000_000);
+  const strategy = seed % 2; // alterna: directa probada / cubo blanco
+  const sub = await submitReflectionEdit(imageUrl, {
+    seed,
+    strategy,
+    extra: extra || undefined,
+    boldness,
+  });
+  if (!sub.ok) return sub;
+  return { ok: true, ticket: sub.data };
+}
+
+/** Paso 2 (repetible desde el cliente): consulta el ticket. Pendiente →
+ *  {pending:true}. Lista → guarda en Storage, gate determinista, auditoría
+ *  doble, y devuelve el MEJOR acumulado + métricas de ESTA ronda. */
+export async function pollCleanup(
+  imageUrl: string,
+  ticket: QueueTicket,
+  prevBest?: CleanupBest | null,
+): Promise<
+  | { ok: true; pending: true }
+  | (CleanupBest & {
+      ok: true;
+      pending: false;
+      attempts: number;
+      lastFeedback: string;
+      round: { score: number; fidelity?: number; reflectionRemoved?: number };
+    })
+  | { ok: false; error: string }
+> {
+  const supabase = await requireAdmin();
+  if (!imageUrl) return { ok: false, error: "Sin imagen." };
+  const best: CleanupBest | null = prevBest ?? null;
+
+  const chk = await checkReflectionEdit(ticket);
+  if (!chk.ok) return { ok: false, error: chk.error };
+  if (!chk.data.done) return { ok: true, pending: true };
 
   // Buffer de la original para el gate determinista (si falla, seguimos sin
   // gate). Se normaliza por la MISMA tubería que la editada (recorte cuadrado
@@ -775,92 +809,60 @@ export async function cleanupPhoto(
     }
   })();
 
-  // RONDA MULTI-CANDIDATA: se lanzan las DOS estrategias de prompt EN PARALELO
-  // (directa probada + cubo blanco), se auditan todas las que cambiaron algo, y
-  // gana la mejor. El doble de oportunidades por ronda con el mismo wall-time.
-  const seed = Math.floor(Math.random() * 1_000_000_000);
-  const STRATEGY_COUNT = 2;
-  const [edits] = await Promise.all([
-    Promise.all(
-      Array.from({ length: STRATEGY_COUNT }, (_, s) =>
-        editAndStore(supabase, imageUrl, seed + s, extra || undefined, boldness, s),
-      ),
-    ),
+  // Guardado del resultado y descarga de la original EN PARALELO.
+  const [stored] = await Promise.all([
+    storeEditedImage(supabase, chk.data.imageUrl!),
     fetchOriginal,
   ]);
-  const okEdits = edits.filter(
-    (e): e is { ok: true; url: string; buf: Buffer; contentType: string } => e.ok,
-  );
-  if (!okEdits.length) {
-    const firstErr = edits.find((e) => !e.ok) as { error: string } | undefined;
-    return { ok: false, error: firstErr?.error || "No se pudo editar la imagen." };
-  }
-  const attempts = okEdits.length;
+  if (!stored.ok) return { ok: false, error: stored.error };
 
-  // Gate 1 (sin IA) por candidata: descarta las que no cambiaron nada.
-  let live = okEdits;
+  // Gate 1 (sin IA): ¿la edición no cambió nada? → sin gastar auditoría, y la
+  // siguiente ronda entra con presión máxima.
   if (originalBuf) {
-    const gated: typeof okEdits = [];
-    for (const e of okEdits) {
-      try {
-        const diff = await pixelDiffStats(originalBuf, e.buf);
-        if (!isNoChange(diff)) gated.push(e);
-      } catch {
-        gated.push(e);
+    try {
+      const diff = await pixelDiffStats(originalBuf, stored.buf);
+      if (isNoChange(diff)) {
+        const candidate: CleanupBest = {
+          cleanedUrl: stored.url,
+          safe: false,
+          score: 5,
+          fidelity: 100,
+          reflectionRemoved: 0,
+          changes: ["La edición no cambió nada visible: el reflejo sigue igual."],
+          note: "El editor devolvió la imagen casi idéntica; la siguiente ronda irá con más presión.",
+          feedback: BOLDER_FEEDBACK,
+        };
+        return {
+          ok: true,
+          pending: false,
+          ...betterOf(best, candidate),
+          attempts: 1,
+          lastFeedback: BOLDER_FEEDBACK,
+          round: { score: 5, fidelity: 100, reflectionRemoved: 0 },
+        };
       }
+    } catch {
+      /* gate no disponible; sigue la auditoría */
     }
-    if (!gated.length) {
-      // TODAS las candidatas volvieron sin cambios → presión máxima en la próxima.
-      const candidate: CleanupBest = {
-        cleanedUrl: okEdits[0].url,
-        safe: false,
-        score: 5,
-        fidelity: 100,
-        reflectionRemoved: 0,
-        changes: ["La edición no cambió nada visible: el reflejo sigue igual."],
-        note: "El editor devolvió la imagen casi idéntica; el siguiente intento irá con una instrucción más contundente.",
-        feedback: BOLDER_FEEDBACK,
-      };
-      return {
-        ok: true,
-        ...betterOf(best, candidate),
-        attempts,
-        lastFeedback: BOLDER_FEEDBACK,
-      };
-    }
-    live = gated;
   }
 
-  // Auditoría (doble) de cada candidata viva, en paralelo.
-  const origForAudit = originalBuf ? { buf: originalBuf, type: originalType } : null;
-  let audits = await Promise.all(
-    live.map((e) =>
-      auditEdit(imageUrl, e.url, {
-        orig: origForAudit,
-        edited: { buf: e.buf, type: e.contentType },
-      }),
-    ),
-  );
-  // Fallo transitorio total de la auditoría: un reintento antes de rendirse
-  // (desperdiciar ediciones ya pagadas sería peor).
-  if (!audits.some((a) => a.ok) && aiConfigured()) {
+  // Auditoría doble (con un reintento ante fallo transitorio: desperdiciar la
+  // edición ya pagada sería peor).
+  const auditBufs = {
+    orig: originalBuf ? { buf: originalBuf, type: originalType } : null,
+    edited: { buf: stored.buf, type: stored.contentType },
+  };
+  let audit = await auditEdit(imageUrl, stored.url, auditBufs);
+  if (!audit.ok && aiConfigured()) {
     await new Promise((r) => setTimeout(r, 1200));
-    audits = await Promise.all(
-      live.map((e) =>
-        auditEdit(imageUrl, e.url, {
-          orig: origForAudit,
-          edited: { buf: e.buf, type: e.contentType },
-        }),
-      ),
-    );
+    audit = await auditEdit(imageUrl, stored.url, auditBufs);
   }
-  if (!audits.some((a) => a.ok)) {
-    const firstErr = audits.find((a) => !a.ok) as { error: string } | undefined;
+  if (!audit.ok) {
     const cause = aiConfigured()
-      ? `La auditoría falló en este intento (${(firstErr?.error || "").slice(0, 140)}).`
+      ? `La auditoría falló en este intento (${audit.error.slice(0, 140)}).`
       : "No se pudo auditar (falta ANTHROPIC_API_KEY en Vercel); compárala tú antes de usarla.";
     const candidate: CleanupBest = {
-      cleanedUrl: live[0].url,
+      cleanedUrl: stored.url,
       safe: false,
       score: 0,
       changes: [cause],
@@ -869,38 +871,27 @@ export async function cleanupPhoto(
     };
     return {
       ok: true,
+      pending: false,
       ...betterOf(best, candidate),
       note: cause,
-      attempts,
+      attempts: 1,
       lastFeedback: "",
+      round: { score: 0 },
     };
   }
 
-  // La mejor candidata de la ronda (publicable gana siempre; si no, por score).
-  let roundBest: CleanupBest | null = null;
-  audits.forEach((a, i) => {
-    if (!a.ok) return;
-    const d = a.data;
-    const cand: CleanupBest = {
-      cleanedUrl: live[i].url,
-      safe: d.publishable,
-      score: d.score,
-      fidelity: d.fidelity,
-      reflectionRemoved: d.reflectionRemoved,
-      changes: d.changes,
-      note: d.note,
-      feedback: d.feedback,
-    };
-    if (
-      !roundBest ||
-      (cand.safe && !roundBest.safe) ||
-      (cand.safe === roundBest.safe && cand.score > roundBest.score)
-    ) {
-      roundBest = cand;
-    }
-  });
-  const round = roundBest as unknown as CleanupBest;
-  const result = round.safe ? round : betterOf(best, round);
+  const d = audit.data;
+  const candidate: CleanupBest = {
+    cleanedUrl: stored.url,
+    safe: d.publishable,
+    score: d.score,
+    fidelity: d.fidelity,
+    reflectionRemoved: d.reflectionRemoved,
+    changes: d.changes,
+    note: d.note,
+    feedback: d.feedback,
+  };
+  const result = candidate.safe ? candidate : betterOf(best, candidate);
 
   const note = result.safe
     ? result.note || "Publicable: producto fiel y reflejo limpio."
@@ -913,10 +904,12 @@ export async function cleanupPhoto(
 
   return {
     ok: true,
+    pending: false,
     ...result,
     note,
-    attempts,
-    lastFeedback: round.feedback || "",
+    attempts: 1,
+    lastFeedback: d.feedback || "",
+    round: { score: d.score, fidelity: d.fidelity, reflectionRemoved: d.reflectionRemoved },
   };
 }
 

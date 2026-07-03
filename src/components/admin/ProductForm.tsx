@@ -6,7 +6,8 @@ import {
   uploadImage,
   suggestProduct,
   checkPhoto,
-  cleanupPhoto,
+  startCleanup,
+  pollCleanup,
   enhancePhoto,
 } from "@/app/admin/actions";
 import type { Category, Product, Supplier } from "@/lib/types";
@@ -31,6 +32,7 @@ interface PhotoCleanup {
   note?: string;
   feedback?: string; // feedback del mejor intento
   lastFeedback?: string; // feedback del ÚLTIMO intento (guía el siguiente)
+  lastRound?: { score: number; fidelity?: number; reflectionRemoved?: number };
   error?: string;
   attempts?: number; // acumulado (todas las tandas)
 }
@@ -56,7 +58,8 @@ export default function ProductForm({
 
   // Bandera de parada del bucle automático, por foto.
   const stopRef = useRef<Record<string, boolean>>({});
-  const CAP_PER_RUN = 6; // rondas por pulsación; cada ronda prueba 2 ediciones en paralelo
+  const CAP_PER_RUN = 4; // rondas (ediciones Pro) por pulsación — control de coste
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   // Persistencia del mejor intento por foto: si Safari descarta la pestaña
   // (habitual en móvil tras minutos en segundo plano), al volver se restaura
@@ -140,15 +143,46 @@ export default function ProductForm({
     }
     try {
       while (!stopRef.current[url] && rounds < CAP_PER_RUN) {
-        const r = await cleanupPhoto(url, best, lastHint || undefined);
-        if (!r || !r.ok) {
+        // Paso 1: encargar la edición a la cola (vuelve al instante).
+        const s = await startCleanup(url, best, lastHint || undefined);
+        if (!s || !s.ok) {
           const msg =
-            r && !r.ok
-              ? r.error
+            s && !s.ok
+              ? s.error
               : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.";
           write((prev) => ({ ...prev[url], loading: false, stopping: false, error: msg }));
           return;
         }
+        // Paso 2: esperar el resultado preguntando cada pocos segundos.
+        const t0 = Date.now();
+        let r: Awaited<ReturnType<typeof pollCleanup>> | null = null;
+        while (!stopRef.current[url]) {
+          await sleep(3500);
+          const p = await pollCleanup(url, s.ticket, best);
+          if (!p || !p.ok) {
+            const msg =
+              p && !p.ok
+                ? p.error
+                : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.";
+            write((prev) => ({ ...prev[url], loading: false, stopping: false, error: msg }));
+            return;
+          }
+          if (p.pending) {
+            if (Date.now() - t0 > 240_000) {
+              write((prev) => ({
+                ...prev[url],
+                loading: false,
+                stopping: false,
+                error: "El editor está tardando demasiado. Pulsa «Seguir probando» para reintentar.",
+              }));
+              return;
+            }
+            continue;
+          }
+          r = p;
+          break;
+        }
+        if (!r || r.pending) break; // parado por el usuario
         rounds += 1;
         total += r.attempts;
         lastHint = r.lastFeedback || lastHint;
@@ -166,11 +200,17 @@ export default function ProductForm({
         write(() => ({
           ...best!,
           lastFeedback: lastHint,
+          lastRound: r!.round,
           attempts: total,
           loading: keepGoing,
           stopping: false,
         }));
-        persistCleanup(url, { ...best!, lastFeedback: lastHint, attempts: total });
+        persistCleanup(url, {
+          ...best!,
+          lastFeedback: lastHint,
+          lastRound: r.round,
+          attempts: total,
+        });
         if (r.safe) break;
       }
     } catch (err: any) {
@@ -625,10 +665,10 @@ export default function ProductForm({
               ),
             )}
             <span className="w-full text-[11px] text-muted/80">
-              Cada ronda prueba 2 ediciones con enfoques distintos y se queda con la
-              mejor; reintenta sola hasta encontrar una publicable (hasta {CAP_PER_RUN}{" "}
-              rondas por pulsación; «Seguir probando» da otra tanda). Puede tardar
-              varios minutos: mantén la pantalla encendida. Podrás pararlo cuando quieras.
+              Usa el editor más potente (sin límite de tiempo) y reintenta sola hasta
+              encontrar una publicable: máx. {CAP_PER_RUN} ediciones por pulsación para
+              controlar el gasto; «Seguir probando» da otra tanda. Cada edición tarda
+              ~30-60 s: mantén la pantalla encendida. Podrás pararlo cuando quieras.
             </span>
           </div>
         )}
@@ -674,6 +714,18 @@ export default function ProductForm({
                   {typeof cl.fidelity === "number"
                     ? ` · Fidelidad al producto: ${cl.fidelity}/100`
                     : ""}
+                </p>
+              )}
+              {cl.lastRound && (
+                <p className="text-[11px] text-muted">
+                  Última ronda:{" "}
+                  {typeof cl.lastRound.reflectionRemoved === "number"
+                    ? `reflejo ${cl.lastRound.reflectionRemoved}/100`
+                    : `calidad ${cl.lastRound.score}/100`}
+                  {typeof cl.lastRound.fidelity === "number"
+                    ? ` · fidelidad ${cl.lastRound.fidelity}/100`
+                    : ""}
+                  {" "}(se muestra el mejor acumulado)
                 </p>
               )}
               <div className="mt-2 grid grid-cols-2 gap-3">
@@ -746,13 +798,26 @@ export default function ProductForm({
                   </button>
                 ) : (
                   !cl.safe && (
-                    <button
-                      type="button"
-                      onClick={() => runCleanup(src)}
-                      className="btn-outline text-sm"
-                    >
-                      ✨ Seguir probando
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => runCleanup(src)}
+                        className="btn-outline text-sm"
+                      >
+                        ✨ Seguir probando
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dismissCleanup(src);
+                          setTimeout(() => runCleanup(src), 50);
+                        }}
+                        title="Descarta el mejor acumulado y prueba desde cero"
+                        className="text-sm text-muted hover:text-gold-3"
+                      >
+                        Empezar de cero
+                      </button>
+                    </>
                   )
                 )}
                 <button

@@ -107,6 +107,14 @@ backoffice completos y funcionando.
        podía invocar las acciones de IA y gastar crédito).
      Modelo por defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`, `image_urls[]`);
      Gemini 3 Pro es más lento (timeouts en Hobby) → `FAL_IMAGE_MODEL` solo con funciones largas. Kontext usa `image_url`.
+     · **4ª iteración (2026-07-03) — COLA ASÍNCRONA + MODELO PRO.** Flash seguía devolviendo la foto intacta incluso con
+       el prompt probado; el modelo capaz (Gemini 3 Pro) solo fallaba por el límite de 60 s. Solución: **cola de fal**
+       (`queue.fal.run`): `startCleanup` encarga la edición y devuelve un ticket (guard anti-SSRF: solo URLs de
+       queue.fal.run), el cliente hace poll cada 3,5 s a `pollCleanup`, que al estar lista guarda+gate+auditoría. Sin
+       límite de tiempo, sin "Load failed". **Control de gasto:** 1 edición Pro por ronda, máx. 4 rondas por pulsación,
+       métrica «Última ronda: reflejo X · fidelidad Y» visible (el panel muestra el mejor acumulado, que puede ser
+       antiguo/restaurado) y botón **«Empezar de cero»** que descarta el mejor persistido. `cleanupPhoto` queda como
+       stub legado (pestañas viejas → "recarga la página").
      · **3ª iteración (2026-07-03) — REGLA DE ORO EMPÍRICA: prompts CORTOS.** Trazado el historial completo de
        resultados reales: el ÚNICO bueno salió con un prompt de ~150 palabras (directo, imperativo); cada añadido de
        cláusulas lo degradó hasta que el editor devolvía la foto intacta (fid 100/reflejo 10). Reconstruido: prompt
