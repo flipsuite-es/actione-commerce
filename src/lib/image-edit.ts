@@ -27,8 +27,9 @@ const FAL_MODEL =
 
 const REFLECTION_PROMPT =
   "You are editing a product photo of gold-tone jewelry that is so polished it acts like a mirror. Right now the metal is MIRRORING the person taking the photo — a human body, face, arms and a phone are clearly visible reflected on the gold surface. " +
-  "Your task: change ONLY what is REFLECTED on the metal (the environment it mirrors), NOT the jewelry object itself. Replace the reflected person, hands, phone and room with the smooth clean reflection of an empty, bright, plain WHITE photo studio (soft white with gentle warm highlights), as if the jewelry were surrounded only by white surfaces. After the edit there must be NO recognisable person, face, hand, phone or room reflected anywhere on the metal — only clean white and soft gradients. " +
-  "Keep the jewelry object EXACTLY the same: same gold colour, same bright glossy MIRROR finish (it must still look highly reflective and shiny, NOT matte, NOT duller, NOT darker, NOT greyer/greener), same shape, size, proportions and position. You are only changing the reflected scenery, not the material. " +
+  "Your task: change ONLY what is REFLECTED on the metal (the environment it mirrors), NOT the jewelry object itself. Replace EVERYTHING reflected — the person, hands, phone, AND the whole room (walls, floor, furniture, windows, and any warm beige or coloured tones from the surroundings) — with the smooth, clean reflection of an empty, bright, plain WHITE photo studio: only soft white and neutral light-grey/white gradients. " +
+  "After the edit, the metal must reflect ONLY clean white — there must be NO recognisable person, face, hand, phone, room, wall or warm-coloured environment reflected anywhere. Imagine the jewelry sitting inside a pure white box with nothing else around it. " +
+  "Keep the jewelry object EXACTLY the same: same gold colour of the metal itself, same bright glossy MIRROR finish (it must still look highly reflective and shiny, NOT matte, NOT duller, NOT darker, NOT greyer/greener), same shape, size, proportions and position. You are only changing the reflected scenery, not the material. " +
   "Keep the white pillow and background clean and bright. Do NOT add gemstones and do NOT hide real scratches. Photorealistic result.";
 
 /** Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
