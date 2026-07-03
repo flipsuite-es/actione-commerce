@@ -110,9 +110,13 @@ export default function ProductForm({
         if (r.safe) break;
       }
     } catch (err: any) {
+      const raw = String(err?.message || "");
+      const msg = /load failed|fetch|network|timeout|aborted/i.test(raw)
+        ? "La edición tardó demasiado o se cortó la conexión. Pulsa «Seguir probando» para reintentar."
+        : raw || "No se pudo quitar el reflejo.";
       setCleanup((prev) => ({
         ...prev,
-        [url]: { ...prev[url], loading: false, error: err?.message || "No se pudo quitar el reflejo." },
+        [url]: { ...prev[url], loading: false, error: msg },
       }));
     } finally {
       setCleanup((prev) =>

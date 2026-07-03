@@ -19,11 +19,12 @@ export function imageEditConfigured(): boolean {
   return !!process.env.FAL_KEY;
 }
 
-// Modelo de edición. Por defecto Gemini 3 Pro Image ("nano-banana Pro"), el más
-// potente para edición por instrucción. Override: FAL_IMAGE_MODEL (p. ej.
-// "fal-ai/gemini-25-flash-image/edit" o "fal-ai/flux-pro/kontext/max").
+// Modelo de edición. Por defecto Gemini 2.5 Flash Image ("nano-banana"): rápido
+// y fiable (no da timeouts). Gemini 3 Pro da algo más de calidad pero es lento y
+// puede pasarse del límite de tiempo (Load failed). Override con FAL_IMAGE_MODEL
+// (p. ej. "fal-ai/gemini-3-pro-image-preview/edit" si tu plan permite funciones largas).
 const FAL_MODEL =
-  process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-3-pro-image-preview/edit";
+  process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-25-flash-image/edit";
 
 const REFLECTION_PROMPT =
   "You are editing a product photo of gold-tone jewelry that is so polished it acts like a mirror. Right now the metal is MIRRORING the person taking the photo — a human body, face, arms and a phone are clearly visible reflected on the gold surface. " +
