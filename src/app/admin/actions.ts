@@ -19,6 +19,7 @@ import {
   submitReflectionEdit,
   checkReflectionEdit,
   imageEditConfigured,
+  EDIT_STAGES,
   type QueueTicket,
 } from "@/lib/image-edit";
 import { pixelDiffStats, isNoChange } from "@/lib/image-diff";
@@ -722,13 +723,10 @@ export async function cleanupPhoto(): Promise<{ ok: false; error: string }> {
   };
 }
 
-/** Paso 1: encarga UNA edición a la COLA de fal (modelo Pro, sin el límite de
- *  60 s del modo síncrono) y devuelve el ticket al instante. La estrategia y
- *  la audacia se deciden aquí a partir del mejor intento previo. */
+/** Paso 1: encarga la CAPA 1 (quitar persona) a la cola de fal y devuelve el
+ *  ticket al instante. Las capas siguientes las encadena `pollCleanup`. */
 export async function startCleanup(
   imageUrl: string,
-  prevBest?: CleanupBest | null,
-  nextHint?: string,
 ): Promise<{ ok: true; ticket: QueueTicket } | { ok: false; error: string }> {
   await requireAdmin();
   if (!imageUrl) return { ok: false, error: "Sin imagen." };
@@ -739,32 +737,24 @@ export async function startCleanup(
         "Falta FAL_KEY en el servidor. Créala en fal.ai y añádela en Vercel para activar el borrado de reflejos.",
     };
   }
-  // Corto a propósito: los prompts largos paralizan al editor (evidencia real).
-  const extra = String(nextHint || prevBest?.feedback || "").slice(0, 300);
-  const prevRefl = prevBest?.reflectionRemoved;
-  const boldness =
-    prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
-  const seed = Math.floor(Math.random() * 1_000_000_000);
-  const strategy = seed % 2; // alterna: directa probada / cubo blanco
-  const sub = await submitReflectionEdit(imageUrl, {
-    seed,
-    strategy,
-    extra: extra || undefined,
-    boldness,
-  });
+  const sub = await submitReflectionEdit(imageUrl, { stage: 1 });
   if (!sub.ok) return sub;
   return { ok: true, ticket: sub.data };
 }
 
-/** Paso 2 (repetible desde el cliente): consulta el ticket. Pendiente →
- *  {pending:true}. Lista → guarda en Storage, gate determinista, auditoría
- *  doble, y devuelve el MEJOR acumulado + métricas de ESTA ronda. */
+/** Paso 2 (repetible desde el cliente): consulta el ticket de la capa actual.
+ *  Pendiente → {pending:true}. Capa lista → encadena la SIGUIENTE capa (con la
+ *  salida anterior como entrada) y devuelve el nuevo ticket. Última capa lista
+ *  → guarda en Storage, gate determinista, auditoría doble contra la ORIGINAL,
+ *  y devuelve el MEJOR acumulado + métricas de ESTA ronda. */
 export async function pollCleanup(
   imageUrl: string,
   ticket: QueueTicket,
+  stage: number,
   prevBest?: CleanupBest | null,
+  nextHint?: string,
 ): Promise<
-  | { ok: true; pending: true }
+  | { ok: true; pending: true; ticket?: QueueTicket; stage?: number }
   | (CleanupBest & {
       ok: true;
       pending: false;
@@ -781,6 +771,24 @@ export async function pollCleanup(
   const chk = await checkReflectionEdit(ticket);
   if (!chk.ok) return { ok: false, error: chk.error };
   if (!chk.data.done) return { ok: true, pending: true };
+
+  // Capa terminada. ¿Quedan capas? → encadenar la siguiente con esta salida.
+  const currentStage = Math.max(1, Math.min(EDIT_STAGES, Math.round(stage) || 1));
+  if (currentStage < EDIT_STAGES) {
+    // Corto a propósito: los prompts largos paralizan al editor.
+    const extra = String(nextHint || prevBest?.feedback || "").slice(0, 300);
+    const prevRefl = prevBest?.reflectionRemoved;
+    const boldness =
+      prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
+    const nextStage = currentStage + 1;
+    const sub = await submitReflectionEdit(chk.data.imageUrl!, {
+      stage: nextStage,
+      extra: extra || undefined,
+      boldness,
+    });
+    if (!sub.ok) return sub;
+    return { ok: true, pending: true, ticket: sub.data, stage: nextStage };
+  }
 
   // Buffer de la original para el gate determinista (si falla, seguimos sin
   // gate). Se normaliza por la MISMA tubería que la editada (recorte cuadrado
@@ -836,7 +844,7 @@ export async function pollCleanup(
           ok: true,
           pending: false,
           ...betterOf(best, candidate),
-          attempts: 1,
+          attempts: EDIT_STAGES,
           lastFeedback: BOLDER_FEEDBACK,
           round: { score: 5, fidelity: 100, reflectionRemoved: 0 },
         };
@@ -874,7 +882,7 @@ export async function pollCleanup(
       pending: false,
       ...betterOf(best, candidate),
       note: cause,
-      attempts: 1,
+      attempts: EDIT_STAGES,
       lastFeedback: "",
       round: { score: 0 },
     };
@@ -907,7 +915,7 @@ export async function pollCleanup(
     pending: false,
     ...result,
     note,
-    attempts: 1,
+    attempts: EDIT_STAGES,
     lastFeedback: d.feedback || "",
     round: { score: d.score, fidelity: d.fidelity, reflectionRemoved: d.reflectionRemoved },
   };

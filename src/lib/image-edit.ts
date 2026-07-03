@@ -26,44 +26,55 @@ export function imageEditConfigured(): boolean {
 const FAL_MODEL =
   process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-3-pro-image-preview/edit";
 
-/* --- Sistema de prompts -----------------------------------------------------
- * EVIDENCIA EMPÍRICA de esta sesión (fotos reales del usuario): Gemini Flash
- * edita bien con órdenes CORTAS e imperativas, y se paraliza (devuelve la foto
- * casi intacta) con prompts largos llenos de restricciones. El único resultado
- * bueno de toda la sesión salió con un prompt de ~150 palabras. Por eso:
- * prompts compactos, el cambio requerido primero, y la fidelidad la vigila la
- * AUDITORÍA de cleanupPhoto (que rechaza excesos), no una muralla de cláusulas.
- * Cada ronda prueba DOS estrategias en paralelo y se queda con la mejor. ---- */
+/* --- PIPELINE POR CAPAS ------------------------------------------------------
+ * REGLA EMPÍRICA de esta sesión: el editor clava órdenes CORTAS y únicas, y se
+ * paraliza o se pasa con prompts largos multi-objetivo. Por eso: capas. -------
+ * Cada capa es UNA orden pequeña y única (lo que este modelo clava); pedirlo
+ * todo a la vez hacía que se quedara corto o se pasara. La cadena por ronda:
+ *   1) quitar la PERSONA/móvil de los reflejos   (probado: funciona muy bien)
+ *   2) quitar la HABITACIÓN (parches cálidos/oliva del metal)
+ *   3) balance de blancos del AMBIENTE (cojín/fondo leyéndose blancos)
+ * La auditoría final compara SIEMPRE contra la foto ORIGINAL, así la fidelidad
+ * queda protegida de punta a punta de la cadena. ----------------------------- */
 
-/** Estrategia 0 — la formulación que YA funcionó con esta pieza (directa). */
-const STRATEGY_DIRECT =
-  "Edit this product photo of shiny polished metal jewelry. COMPLETELY REMOVE every reflection of the person, photographer, hands, phone and the room from the polished metal surfaces. Replace those reflections with the clean, smooth reflection of a plain white photo studio — soft white with gentle warm highlights — exactly as if the jewelry had been photographed inside a white light tent surrounded by plain white cards. There must be NO recognisable person or object reflected anywhere on the metal, and no warm room tones on it — only clean white-studio reflections. " +
-  "The darker warm, olive or brown patches mirrored on the metal are ALSO the room — repaint every one of them as white studio too, so the metal shows only white highlights and its own clean light-gold tone. " +
-  "Gently brighten and neutralise the ambient colour so the cushion and background read clean white — like a white-balance correction — but do NOT re-stage or re-render the scene: keep the EXACT same camera angle, framing, composition, cushion position, orientation and wrinkles, and the piece's natural cast shadow. It must remain the same real photograph, not a synthetic render. " +
-  "Keep the jewelry itself 100% identical: same shape, size, proportions and position — do NOT make the pieces look plumper, rounder or more perfect — same dents and hammered texture (do not smooth them away), and the SAME bright, glossy mirror finish in its same colour. Do NOT make the metal duller, darker, greyer, greener or matte — it must stay shiny polished metal with crisp highlights. Do NOT add gemstones. Photorealistic.";
+export const EDIT_STAGES = 3;
 
-/** Estrategia 1 — «cubo blanco»: re-imaginar la toma dentro de una caja de luz. */
-const STRATEGY_WHITE_CUBE =
-  "Make this exact product photo look like it was shot inside a seamless white photography lightbox (a white cube). The polished metal jewelry currently mirrors the photographer and the room; inside the white cube it mirrors ONLY white panels, soft neutral gradients and bright softbox highlights — repaint all its reflections accordingly, so no person, phone or room is recognisable on the metal. Every darker warm, olive or brown patch on the metal is the reflected room: repaint those as white studio too. " +
-  "The surroundings get a gentle white-balance correction (cushion and background reading clean bright white, no warm or grey cast) — but the photo is NOT re-staged: EXACT same camera angle, framing, cushion position and wrinkles, and the natural cast shadow stays. Same real photograph, not a 3D render. " +
-  "The piece itself stays identical: exact shape, size and proportions (never plumper or more perfect), same dents and hammered texture, same colour and bright glossy mirror finish (never dull or matte). No gemstones added. Photorealistic.";
+const STAGE_PERSON =
+  "Edit this product photo of shiny polished metal jewelry. Completely REMOVE the reflection of the person, their phone and hands from the polished metal surfaces; repaint those reflected areas as a clean white photo studio (soft white with gentle highlights). " +
+  "Keep everything else EXACTLY as is: the same piece (shape, size, dents, hammered texture, same bright glossy mirror finish and colour), the same cushion, shadow, background, framing and camera angle. Photorealistic — the same photograph.";
 
-const STRATEGIES = [STRATEGY_DIRECT, STRATEGY_WHITE_CUBE];
+const STAGE_ROOM =
+  "In this product photo, the polished metal still mirrors parts of the ROOM: the darker warm, olive or brown patches visible on the metal. Repaint ONLY those warm/dark reflected patches as clean white-studio reflection, so the metal shows just bright white highlights and its own clean light tone. " +
+  "Touch nothing else: same piece (shape, size, dents, hammered texture, same glossy mirror finish and colour), same cushion, shadow, background, framing and angle. Photorealistic — the same photograph.";
+
+const STAGE_AMBIENT =
+  "Apply a gentle white-balance correction to this product photo so the cushion and the background read clean, bright white (remove the warm/grey colour cast). " +
+  "Do NOT re-stage anything: exact same camera angle, framing, cushion position and wrinkles, the same cast shadow, and the jewelry completely untouched (same shape, colour and glossy finish). The same real photograph, not a render.";
+
+const STAGE_PROMPTS = [STAGE_PERSON, STAGE_ROOM, STAGE_AMBIENT];
 
 export interface EditPromptOpts {
   seed?: number;
-  strategy?: number;
+  /** Capa 1..3 (persona / habitación / ambiente). */
+  stage?: number;
   extra?: string;
   boldness?: number;
 }
 
-function buildReflectionPrompt(opts: EditPromptOpts): string {
-  const strategy = STRATEGIES[Math.abs(opts.strategy ?? 0) % STRATEGIES.length];
+function buildStagePrompt(opts: EditPromptOpts): string {
+  const idx = Math.max(1, Math.min(EDIT_STAGES, opts.stage ?? 1)) - 1;
+  // El feedback/presión solo aplica a la capa de la habitación (la difícil);
+  // las otras dos funcionan mejor sin ruido añadido.
+  if (idx !== 1) return STAGE_PROMPTS[idx];
   const boldness =
     BOLDNESS_SUFFIXES[
       Math.max(0, Math.min(BOLDNESS_SUFFIXES.length - 1, opts.boldness ?? 0))
     ];
-  return strategy + boldness + (opts.extra ? `\n\nAlso fix specifically: ${opts.extra}` : "");
+  return (
+    STAGE_PROMPTS[idx] +
+    boldness +
+    (opts.extra ? `\n\nAlso fix specifically: ${opts.extra}` : "")
+  );
 }
 
 /** Escalada de audacia cuando los intentos anteriores salieron tímidos (corta:
@@ -94,7 +105,7 @@ export async function removeReflection(
     };
   }
   const isGemini = FAL_MODEL.includes("gemini");
-  const prompt = buildReflectionPrompt(opts);
+  const prompt = buildStagePrompt(opts);
   // Gemini ("nano-banana") usa image_urls[]; FLUX Kontext usa image_url + params.
   const body = isGemini
     ? { prompt, image_urls: [imageUrl] }
@@ -181,7 +192,7 @@ export function isFalQueueUrl(url: string): boolean {
 
 function buildEditBody(imageUrl: string, opts: EditPromptOpts) {
   const isGemini = FAL_MODEL.includes("gemini");
-  const prompt = buildReflectionPrompt(opts);
+  const prompt = buildStagePrompt(opts);
   return isGemini
     ? { prompt, image_urls: [imageUrl] }
     : {
