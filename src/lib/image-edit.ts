@@ -19,15 +19,17 @@ export function imageEditConfigured(): boolean {
   return !!process.env.FAL_KEY;
 }
 
-// Modelo de edición. Por defecto Gemini 2.5 Flash Image ("nano-banana"), muy
-// bueno quitando personas/reflejos manteniendo el sujeto. Override: FAL_IMAGE_MODEL
-// (p. ej. "fal-ai/flux-pro/kontext/max").
-const FAL_MODEL = process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-25-flash-image/edit";
+// Modelo de edición. Por defecto Gemini 3 Pro Image ("nano-banana Pro"), el más
+// potente para edición por instrucción. Override: FAL_IMAGE_MODEL (p. ej.
+// "fal-ai/gemini-25-flash-image/edit" o "fal-ai/flux-pro/kontext/max").
+const FAL_MODEL =
+  process.env.FAL_IMAGE_MODEL || "fal-ai/gemini-3-pro-image-preview/edit";
 
 const REFLECTION_PROMPT =
-  "Edit this product photo of shiny gold-tone metal jewelry. COMPLETELY REMOVE every reflection of the person, photographer, hands, phone, camera and the room from the polished metal surfaces. Replace those reflections with the clean, smooth reflection of a plain white photo studio — soft white with gentle warm highlights — exactly as if the jewelry had been photographed inside a white light tent surrounded by plain white cards. There must be NO recognisable person or object reflected anywhere on the metal. " +
-  "Keep the jewelry itself 100% identical: same shape, size, proportions and position, and the SAME bright, warm, glossy mirror gold-tone (or silver-tone) finish. Do NOT make the metal duller, darker, greyer, greener, browner or matte; do NOT change its colour; keep it looking like clean shiny polished metal with crisp highlights. " +
-  "Keep the white pillow and background clean and bright. Do NOT add gemstones and do NOT hide real scratches or dents on the piece. Photorealistic result.";
+  "You are editing a product photo of gold-tone jewelry that is so polished it acts like a mirror. Right now the metal is MIRRORING the person taking the photo — a human body, face, arms and a phone are clearly visible reflected on the gold surface. " +
+  "Your task: change ONLY what is REFLECTED on the metal (the environment it mirrors), NOT the jewelry object itself. Replace the reflected person, hands, phone and room with the smooth clean reflection of an empty, bright, plain WHITE photo studio (soft white with gentle warm highlights), as if the jewelry were surrounded only by white surfaces. After the edit there must be NO recognisable person, face, hand, phone or room reflected anywhere on the metal — only clean white and soft gradients. " +
+  "Keep the jewelry object EXACTLY the same: same gold colour, same bright glossy MIRROR finish (it must still look highly reflective and shiny, NOT matte, NOT duller, NOT darker, NOT greyer/greener), same shape, size, proportions and position. You are only changing the reflected scenery, not the material. " +
+  "Keep the white pillow and background clean and bright. Do NOT add gemstones and do NOT hide real scratches. Photorealistic result.";
 
 /** Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
  *  `seed`: varíala entre reintentos para resultados distintos.
@@ -52,7 +54,7 @@ export async function removeReflection(
   const isGemini = FAL_MODEL.includes("gemini");
   // Gemini ("nano-banana") usa image_urls[]; FLUX Kontext usa image_url + params.
   const body = isGemini
-    ? { prompt, image_urls: [imageUrl], num_images: 1 }
+    ? { prompt, image_urls: [imageUrl] }
     : {
         prompt,
         image_url: imageUrl,

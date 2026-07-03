@@ -486,7 +486,7 @@ export async function cleanupPhoto(
     };
   }
 
-  const MAX_ATTEMPTS = 2; // por tanda (el modelo MAX es lento); el cliente encadena tandas
+  const MAX_ATTEMPTS = 1; // 1 edición + auditoría por petición (modelo Pro lento); el cliente encadena hasta AUTO_CAP
   let best: CleanupBest | null = prevBest ?? null;
   // Ajuste temporal de instrucción que arrastramos entre intentos (NO toca el
   // prompt base guardado). Arranca del feedback previo si venimos de otra tanda.
