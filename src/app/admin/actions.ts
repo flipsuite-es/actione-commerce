@@ -474,7 +474,7 @@ Rellena este checklist EXACTO. Devuelve SOLO el JSON, sin texto extra:
  "scene": "same|slightly_changed|changed",
  "elements_added_or_removed": false,
  "note_es": "una frase breve en español para el admin",
- "feedback_en": "one short instruction in ENGLISH for the image editor's NEXT attempt fixing what failed, or empty if nothing failed"
+ "feedback_en": "one short instruction in ENGLISH for the image editor's NEXT attempt fixing what failed, or empty if nothing failed. IMPORTANT: the editor will re-edit the ORIGINAL photo from scratch (not the edited one), so phrase it about the original (e.g. 'the reflection on the left drop must become clean white; keep the gold bright and glossy')"
 }
 Significado: person_reflection = ¿en la EDITADA se ve persona/cara/brazos/manos/móvil reflejados en el metal? · room_reflection = ¿se ve la habitación/entorno reflejado (paredes, muebles, ventanas, manchas cálidas del entorno)? · silhouette = contorno/proporciones de cada pieza vs original · surface_details = facetas/martelé/bollos FÍSICOS conservados (según las claves de arriba) · metal_finish = ¿sigue siendo espejo brillante o se ha apagado/mateado? · metal_color = ¿el tono del oro es el mismo o ha virado (pálido/verdoso/oscuro)? · fastening_parts = postes/cierres/mariposas iguales · scene = cojín (arrugas), sombras proyectadas, fondo, encuadre y tamaño del sujeto · elements_added_or_removed = ¿se añadió o quitó algo (gemas, piezas, objetos)?`;
 
@@ -800,10 +800,17 @@ export async function cleanupPhoto(
     }
   }
 
-  const audit = await auditEdit(imageUrl, stored.url, {
+  const auditBufs = {
     orig: originalBuf ? { buf: originalBuf, type: originalType } : null,
     edited: { buf: stored.buf, type: stored.contentType },
-  });
+  };
+  let audit = await auditEdit(imageUrl, stored.url, auditBufs);
+  // Un fallo transitorio de la auditoría desperdiciaría la edición ya pagada:
+  // se reintenta una vez tras una pausa corta antes de rendirse.
+  if (!audit.ok && aiConfigured()) {
+    await new Promise((r) => setTimeout(r, 1200));
+    audit = await auditEdit(imageUrl, stored.url, auditBufs);
+  }
   // Auditoría no disponible: NO perdemos el mejor acumulado y contamos la
   // causa real (clave ausente vs error transitorio de la API).
   if (!audit.ok) {

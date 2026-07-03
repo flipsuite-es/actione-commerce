@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   saveProduct,
   uploadImage,
@@ -57,6 +57,42 @@ export default function ProductForm({
   // Bandera de parada del bucle automático, por foto.
   const stopRef = useRef<Record<string, boolean>>({});
   const CAP_PER_RUN = 10; // tope de intentos POR PULSACIÓN (protección coste/tiempo)
+
+  // Persistencia del mejor intento por foto: si Safari descarta la pestaña
+  // (habitual en móvil tras minutos en segundo plano), al volver se restaura
+  // el mejor resultado pagado en vez de perderlo todo.
+  const CLEANUP_LS = "oucy-cleanup:";
+  function persistCleanup(url: string, entry: PhotoCleanup) {
+    try {
+      const { loading, stopping, error, ...rest } = entry;
+      if (rest.cleanedUrl) localStorage.setItem(CLEANUP_LS + url, JSON.stringify(rest));
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }
+  function clearCleanupPersist(url: string) {
+    try {
+      localStorage.removeItem(CLEANUP_LS + url);
+    } catch {
+      /* noop */
+    }
+  }
+  useEffect(() => {
+    try {
+      const restored: Record<string, PhotoCleanup> = {};
+      for (const src of images) {
+        const raw = localStorage.getItem(CLEANUP_LS + src);
+        if (raw) restored[src] = { ...JSON.parse(raw), loading: false, stopping: false };
+      }
+      if (Object.keys(restored).length) {
+        setCleanup((prev) => ({ ...restored, ...prev }));
+      }
+    } catch {
+      /* noop */
+    }
+    // Solo al montar: restaura lo persistido para las fotos ya presentes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function stopCleanup(url: string) {
     stopRef.current[url] = true;
@@ -134,6 +170,7 @@ export default function ProductForm({
           loading: keepGoing,
           stopping: false,
         }));
+        persistCleanup(url, { ...best!, lastFeedback: lastHint, attempts: total });
         if (r.safe) break;
       }
     } catch (err: any) {
@@ -161,6 +198,7 @@ export default function ProductForm({
   // cualquier bucle en vuelo sobre la original.
   function useCleaned(originalUrl: string, cleanedUrl: string) {
     stopRef.current[originalUrl] = true;
+    clearCleanupPersist(originalUrl);
     setImages((prev) => prev.map((u) => (u === originalUrl ? cleanedUrl : u)));
     setQc((prev) => {
       const next = { ...prev };
@@ -181,6 +219,7 @@ export default function ProductForm({
 
   function dismissCleanup(url: string) {
     stopRef.current[url] = true;
+    clearCleanupPersist(url);
     setCleanup((prev) => {
       const next = { ...prev };
       delete next[url];
@@ -424,6 +463,7 @@ export default function ProductForm({
                   type="button"
                   onClick={() => {
                     stopRef.current[src] = true;
+                    clearCleanupPersist(src);
                     setImages(images.filter((_, j) => j !== i));
                     setQc((prev) => {
                       const next = { ...prev };
@@ -480,7 +520,7 @@ export default function ProductForm({
                   ...c.problems.filter((p) => !/reflej|móvil|movil|fotograf/i.test(p)),
                 ];
                 return (
-                  <li key={src}>
+                  <li key={`${src}-${i}`}>
                     <span className="font-medium">Foto {i + 1}:</span>{" "}
                     {items.join(" · ") || c.note || "revisar"}
                   </li>
@@ -501,7 +541,7 @@ export default function ProductForm({
             {images.map((src, i) =>
               enhance[src]?.url ? null : (
                 <button
-                  key={src}
+                  key={`${src}-${i}`}
                   type="button"
                   onClick={() => runEnhance(src)}
                   disabled={enhance[src]?.loading}
@@ -520,14 +560,14 @@ export default function ProductForm({
           if (!en) return null;
           if (en.error) {
             return (
-              <p key={src} className="mt-2 text-xs text-red-600">
+              <p key={`${src}-${i}`} className="mt-2 text-xs text-red-600">
                 Foto {i + 1}: {en.error}
               </p>
             );
           }
           if (!en.url) return null;
           return (
-            <div key={src} className="mt-3 rounded border border-gold/20 p-3">
+            <div key={`${src}-${i}`} className="mt-3 rounded border border-gold/20 p-3">
               <p className="text-xs font-medium text-ink-soft">
                 Foto {i + 1} — mejora de calidad
               </p>
@@ -574,7 +614,7 @@ export default function ProductForm({
             {images.map((src, i) =>
               cleanup[src]?.cleanedUrl ? null : (
                 <button
-                  key={src}
+                  key={`${src}-${i}`}
                   type="button"
                   onClick={() => runCleanup(src)}
                   disabled={cleanup[src]?.loading}
@@ -599,7 +639,7 @@ export default function ProductForm({
           // Error sin ningún resultado previo: aviso + reintentar (sin panel).
           if (cl.error && !cl.cleanedUrl) {
             return (
-              <p key={src} className="mt-2 text-xs text-red-600">
+              <p key={`${src}-${i}`} className="mt-2 text-xs text-red-600">
                 Foto {i + 1}: {cl.error}{" "}
                 <button
                   type="button"
@@ -613,7 +653,7 @@ export default function ProductForm({
           }
           if (!cl.cleanedUrl) return null;
           return (
-            <div key={src} className="mt-3 rounded border border-gold/20 p-3">
+            <div key={`${src}-${i}`} className="mt-3 rounded border border-gold/20 p-3">
               <p className="text-xs font-medium text-ink-soft">
                 Foto {i + 1} — revisa antes de usar
                 {typeof cl.score === "number" ? ` · calidad ${cl.score}/100` : ""}
