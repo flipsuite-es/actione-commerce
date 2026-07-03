@@ -758,11 +758,14 @@ async function compositeJewelry(
   const coverage = on / unionRaw.length;
   if (coverage < 0.005 || coverage > 0.45) return null;
 
-  // Feather + ligera dilatación para no dejar halo del reflejo viejo en el borde.
+  // Expansión morfológica (+3 px por lado) + feather: cubre el filo del metal
+  // original (reflejo viejo) aunque la máscara venga al ras o la pieza se
+  // desplace 1-2 px en la edición. OJO semántica de sharp/libvips: erode()
+  // EXPANDE el blanco y dilate() lo encoge (verificado con test).
   const featherRaw = await sharp(union)
     .greyscale()
-    .blur(2)
-    .linear(1.35, 0)
+    .erode(3)
+    .blur(1.5)
     .toColourspace("b-w")
     .raw()
     .toBuffer();
