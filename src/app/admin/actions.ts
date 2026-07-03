@@ -1108,10 +1108,10 @@ function paramsFromStats(a: {
     rMul: wb(a.bright.r),
     gMul: wb(a.bright.g),
     bMul: wb(a.bright.b),
-    c: 1.05,
-    sat: 1.06,
-    sigma: 0.8,
-    note: "Ajuste medido (exposición, balance de blancos, contraste y nitidez).",
+    c: 1.13,
+    sat: 1.14,
+    sigma: 1.4,
+    note: "Ajuste medido (exposición, balance de blancos, contraste, saturación y nitidez).",
   };
 }
 
@@ -1120,7 +1120,7 @@ async function paramsFromAI(
   base: Buffer,
   a: { p95: number; clip: number; bright: { r: number; g: number; b: number } },
 ): Promise<EnhanceParams | null> {
-  const system = `Eres un RETOCADOR profesional de fotografía de producto (joyería). Miras una foto y decides ajustes GLOBALES suaves para que se vea profesional, como en un catálogo, SIN alterar el producto (solo tono y color de toda la imagen).
+  const system = `Eres un RETOCADOR profesional de fotografía de producto (joyería). Miras una foto y decides ajustes GLOBALES para que se vea CLARAMENTE más profesional y pulida, como en un catálogo de lujo, SIN alterar el producto (solo tono y color de toda la imagen). La mejora debe NOTARSE (no un cambio invisible): fondo blanco limpio y luminoso (conservando su textura), metal rico y con cuerpo, detalle nítido, sombras con un punto de profundidad. Pero natural, sin pasarte (nada de HDR ni sobresaturación de filtro barato).
 Contexto medido de esta foto (0–255): luminancia p95 = ${a.p95.toFixed(0)} (cuánto brillan las zonas más claras; ~248 es blanco limpio, >252 con mucho "clip" = quemada), % quemado = ${(a.clip * 100).toFixed(0)}%, color medio de las luces = R${a.bright.r.toFixed(0)} G${a.bright.g.toFixed(0)} B${a.bright.b.toFixed(0)} (si un canal domina, hay dominante de color).
 Devuelve EXCLUSIVAMENTE un JSON con estos campos (números en los rangos indicados; 0 = sin cambio):
 {"exposure": <-1..1, negativo si está muy brillante/quemada, positivo si está oscura>,
@@ -1130,7 +1130,7 @@ Devuelve EXCLUSIVAMENTE un JSON con estos campos (números en los rangos indicad
  "saturation": <0..1, 0.5 = neutro; <0.5 desatura, >0.5 satura un poco>,
  "sharpen": <0..1, más si la foto está algo blanda>,
  "note": "una frase muy breve en español de qué has corregido"}
-Sé SUAVE y natural (fotografía real, no filtro). Si la foto ya está bien, devuelve valores cercanos a 0 (y saturation 0.5).`;
+Apunta a valores con presencia (contraste ~0.5–0.8, saturación ~0.55–0.7, sharpen ~0.5–0.8) salvo que la foto ya esté perfecta. Natural pero con el "punch" de una foto de catálogo.`;
 
   const r = await askJSON<{
     exposure?: number | string;
@@ -1167,12 +1167,12 @@ Sé SUAVE y natural (fotografía real, no filtro). Si la foto ya está bien, dev
   const sharpen = cl(num(r.data.sharpen, 0.4), 0, 1);
   return {
     exp: cl(1 + exposure * 0.28, 0.7, 1.3),
-    rMul: cl(1 + warmth * 0.05, 0.9, 1.12),
-    gMul: cl(1 - tint * 0.04, 0.9, 1.12),
-    bMul: cl(1 - warmth * 0.05, 0.9, 1.12),
-    c: cl(1 + contrast * 0.1, 1.0, 1.12),
-    sat: cl(0.98 + saturation * 0.16, 0.96, 1.14),
-    sigma: cl(0.4 + sharpen * 1.1, 0.4, 1.5),
+    rMul: cl(1 + warmth * 0.06, 0.88, 1.14),
+    gMul: cl(1 - tint * 0.05, 0.88, 1.14),
+    bMul: cl(1 - warmth * 0.06, 0.88, 1.14),
+    c: cl(1 + contrast * 0.2, 1.0, 1.2), // hasta 1.20 (con pivote alto no quema el blanco)
+    sat: cl(0.98 + saturation * 0.26, 0.96, 1.24),
+    sigma: cl(0.5 + sharpen * 1.8, 0.5, 2.3),
     note: String(r.data.note || "").slice(0, 160) || "Revelado con IA.",
   };
 }
@@ -1204,15 +1204,21 @@ export async function enhancePhoto(
     // Claude decide viendo la foto; si no hay clave o falla, medición pura.
     const p = (aiConfigured() ? await paramsFromAI(base, stats) : null) ?? paramsFromStats(stats);
 
+    // Contraste con PIVOTE ALTO (~las luces altas, no el gris medio): así los
+    // negros y medios ganan pegada pero el fondo blanco NO se quema y conserva
+    // su textura (validado con test). El pivote va en el dominio post-exposición.
+    const pivot = Math.max(140, Math.min(215, stats.p95 * p.exp - 30));
+    const off = pivot * (1 - p.c);
     // Todo fundido en UN linear (sharp solo aplica el último .linear()).
-    const off = 128 * (1 - p.c);
     const out = await sharp(base)
       .linear(
         [p.c * p.rMul * p.exp, p.c * p.gMul * p.exp, p.c * p.bMul * p.exp],
         [off, off, off],
       )
       .modulate({ saturation: p.sat })
-      .sharpen({ sigma: p.sigma })
+      // Nitidez con microcontraste (m2 alto = más definición en los bordes,
+      // m1 bajo = sin realzar el ruido de las zonas planas).
+      .sharpen({ sigma: p.sigma, m1: 0.4, m2: 2.6 })
       .webp({ quality: 90 })
       .toBuffer();
 
