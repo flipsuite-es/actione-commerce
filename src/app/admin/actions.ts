@@ -355,11 +355,12 @@ async function editAndStore(
   seed: number,
   extra?: string,
   boldness?: number,
+  strategy?: number,
 ): Promise<
   | { ok: true; url: string; buf: Buffer; contentType: string }
   | { ok: false; error: string }
 > {
-  const edited = await removeReflection(imageUrl, { seed, extra, boldness });
+  const edited = await removeReflection(imageUrl, { seed, extra, boldness, strategy });
   if (!edited.ok) return { ok: false, error: edited.error };
   try {
     const resp = await fetch(edited.data, { signal: AbortSignal.timeout(20_000) });
@@ -707,7 +708,7 @@ type CleanupBest = {
 };
 
 const BOLDER_FEEDBACK =
-  "The previous attempt made almost NO visible change — the person and the room are still reflected on the metal exactly as before. Be much bolder this time: repaint ALL reflected content on every metal surface as clean white studio reflections, while keeping the piece's exact contour, facet texture, finish, colour and the whole scene identical.";
+  "The previous attempt changed nothing — the person and room are still reflected. Repaint the metal's reflections completely this time.";
 
 function betterOf(a: CleanupBest | null, b: CleanupBest): CleanupBest {
   if (!a) return b;
@@ -738,7 +739,8 @@ export async function cleanupPhoto(
   const best: CleanupBest | null = prevBest ?? null;
   // Ajuste TEMPORAL de instrucción para este intento: el feedback del último
   // intento (nextHint) manda; si no hay, el del mejor. Nunca toca el prompt base.
-  const extra = String(nextHint || prevBest?.feedback || "").slice(0, 600);
+  // Corto a propósito: los prompts largos paralizan al editor (evidencia real).
+  const extra = String(nextHint || prevBest?.feedback || "").slice(0, 300);
   // Audacia escalonada: si el mejor intento previo fue TÍMIDO (producto intacto
   // pero reflejo sin quitar), el editor necesita presión, no más cautela. La
   // fidelidad la protege la auditoría, que rechaza los excesos.
@@ -773,60 +775,92 @@ export async function cleanupPhoto(
     }
   })();
 
+  // RONDA MULTI-CANDIDATA: se lanzan las DOS estrategias de prompt EN PARALELO
+  // (directa probada + cubo blanco), se auditan todas las que cambiaron algo, y
+  // gana la mejor. El doble de oportunidades por ronda con el mismo wall-time.
   const seed = Math.floor(Math.random() * 1_000_000_000);
-  const [stored] = await Promise.all([
-    editAndStore(supabase, imageUrl, seed, extra || undefined, boldness),
+  const STRATEGY_COUNT = 2;
+  const [edits] = await Promise.all([
+    Promise.all(
+      Array.from({ length: STRATEGY_COUNT }, (_, s) =>
+        editAndStore(supabase, imageUrl, seed + s, extra || undefined, boldness, s),
+      ),
+    ),
     fetchOriginal,
   ]);
-  if (!stored.ok) return { ok: false, error: stored.error };
+  const okEdits = edits.filter(
+    (e): e is { ok: true; url: string; buf: Buffer; contentType: string } => e.ok,
+  );
+  if (!okEdits.length) {
+    const firstErr = edits.find((e) => !e.ok) as { error: string } | undefined;
+    return { ok: false, error: firstErr?.error || "No se pudo editar la imagen." };
+  }
+  const attempts = okEdits.length;
 
-  // Gate 1 (sin IA): ¿la edición no cambió nada? → el reflejo sigue igual;
-  // no gastamos auditoría y forzamos una instrucción más contundente.
+  // Gate 1 (sin IA) por candidata: descarta las que no cambiaron nada.
+  let live = okEdits;
   if (originalBuf) {
-    try {
-      const diff = await pixelDiffStats(originalBuf, stored.buf);
-      if (isNoChange(diff)) {
-        const candidate: CleanupBest = {
-          cleanedUrl: stored.url,
-          safe: false,
-          score: 5,
-          fidelity: 100,
-          reflectionRemoved: 0,
-          changes: ["La edición no cambió nada visible: el reflejo sigue igual."],
-          note: "El editor devolvió la imagen casi idéntica; el siguiente intento irá con una instrucción más contundente.",
-          feedback: BOLDER_FEEDBACK,
-        };
-        return {
-          ok: true,
-          ...betterOf(best, candidate),
-          attempts: 1,
-          lastFeedback: BOLDER_FEEDBACK,
-        };
+    const gated: typeof okEdits = [];
+    for (const e of okEdits) {
+      try {
+        const diff = await pixelDiffStats(originalBuf, e.buf);
+        if (!isNoChange(diff)) gated.push(e);
+      } catch {
+        gated.push(e);
       }
-    } catch {
-      /* gate no disponible; sigue la auditoría */
     }
+    if (!gated.length) {
+      // TODAS las candidatas volvieron sin cambios → presión máxima en la próxima.
+      const candidate: CleanupBest = {
+        cleanedUrl: okEdits[0].url,
+        safe: false,
+        score: 5,
+        fidelity: 100,
+        reflectionRemoved: 0,
+        changes: ["La edición no cambió nada visible: el reflejo sigue igual."],
+        note: "El editor devolvió la imagen casi idéntica; el siguiente intento irá con una instrucción más contundente.",
+        feedback: BOLDER_FEEDBACK,
+      };
+      return {
+        ok: true,
+        ...betterOf(best, candidate),
+        attempts,
+        lastFeedback: BOLDER_FEEDBACK,
+      };
+    }
+    live = gated;
   }
 
-  const auditBufs = {
-    orig: originalBuf ? { buf: originalBuf, type: originalType } : null,
-    edited: { buf: stored.buf, type: stored.contentType },
-  };
-  let audit = await auditEdit(imageUrl, stored.url, auditBufs);
-  // Un fallo transitorio de la auditoría desperdiciaría la edición ya pagada:
-  // se reintenta una vez tras una pausa corta antes de rendirse.
-  if (!audit.ok && aiConfigured()) {
+  // Auditoría (doble) de cada candidata viva, en paralelo.
+  const origForAudit = originalBuf ? { buf: originalBuf, type: originalType } : null;
+  let audits = await Promise.all(
+    live.map((e) =>
+      auditEdit(imageUrl, e.url, {
+        orig: origForAudit,
+        edited: { buf: e.buf, type: e.contentType },
+      }),
+    ),
+  );
+  // Fallo transitorio total de la auditoría: un reintento antes de rendirse
+  // (desperdiciar ediciones ya pagadas sería peor).
+  if (!audits.some((a) => a.ok) && aiConfigured()) {
     await new Promise((r) => setTimeout(r, 1200));
-    audit = await auditEdit(imageUrl, stored.url, auditBufs);
+    audits = await Promise.all(
+      live.map((e) =>
+        auditEdit(imageUrl, e.url, {
+          orig: origForAudit,
+          edited: { buf: e.buf, type: e.contentType },
+        }),
+      ),
+    );
   }
-  // Auditoría no disponible: NO perdemos el mejor acumulado y contamos la
-  // causa real (clave ausente vs error transitorio de la API).
-  if (!audit.ok) {
+  if (!audits.some((a) => a.ok)) {
+    const firstErr = audits.find((a) => !a.ok) as { error: string } | undefined;
     const cause = aiConfigured()
-      ? `La auditoría falló en este intento (${audit.error.slice(0, 140)}).`
+      ? `La auditoría falló en este intento (${(firstErr?.error || "").slice(0, 140)}).`
       : "No se pudo auditar (falta ANTHROPIC_API_KEY en Vercel); compárala tú antes de usarla.";
     const candidate: CleanupBest = {
-      cleanedUrl: stored.url,
+      cleanedUrl: live[0].url,
       safe: false,
       score: 0,
       changes: [cause],
@@ -837,23 +871,36 @@ export async function cleanupPhoto(
       ok: true,
       ...betterOf(best, candidate),
       note: cause,
-      attempts: 1,
+      attempts,
       lastFeedback: "",
     };
   }
 
-  const a = audit.data;
-  const candidate: CleanupBest = {
-    cleanedUrl: stored.url,
-    safe: a.publishable,
-    score: a.score,
-    fidelity: a.fidelity,
-    reflectionRemoved: a.reflectionRemoved,
-    changes: a.changes,
-    note: a.note,
-    feedback: a.feedback,
-  };
-  const result = candidate.safe ? candidate : betterOf(best, candidate);
+  // La mejor candidata de la ronda (publicable gana siempre; si no, por score).
+  let roundBest: CleanupBest | null = null;
+  audits.forEach((a, i) => {
+    if (!a.ok) return;
+    const d = a.data;
+    const cand: CleanupBest = {
+      cleanedUrl: live[i].url,
+      safe: d.publishable,
+      score: d.score,
+      fidelity: d.fidelity,
+      reflectionRemoved: d.reflectionRemoved,
+      changes: d.changes,
+      note: d.note,
+      feedback: d.feedback,
+    };
+    if (
+      !roundBest ||
+      (cand.safe && !roundBest.safe) ||
+      (cand.safe === roundBest.safe && cand.score > roundBest.score)
+    ) {
+      roundBest = cand;
+    }
+  });
+  const round = roundBest as unknown as CleanupBest;
+  const result = round.safe ? round : betterOf(best, round);
 
   const note = result.safe
     ? result.note || "Publicable: producto fiel y reflejo limpio."
@@ -868,8 +915,8 @@ export async function cleanupPhoto(
     ok: true,
     ...result,
     note,
-    attempts: 1,
-    lastFeedback: a.feedback || "",
+    attempts,
+    lastFeedback: round.feedback || "",
   };
 }
 

@@ -107,6 +107,13 @@ backoffice completos y funcionando.
        podía invocar las acciones de IA y gastar crédito).
      Modelo por defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`, `image_urls[]`);
      Gemini 3 Pro es más lento (timeouts en Hobby) → `FAL_IMAGE_MODEL` solo con funciones largas. Kontext usa `image_url`.
+     · **3ª iteración (2026-07-03) — REGLA DE ORO EMPÍRICA: prompts CORTOS.** Trazado el historial completo de
+       resultados reales: el ÚNICO bueno salió con un prompt de ~150 palabras (directo, imperativo); cada añadido de
+       cláusulas lo degradó hasta que el editor devolvía la foto intacta (fid 100/reflejo 10). Reconstruido: prompt
+       probado recuperado como Estrategia 0 (directa) + Estrategia 1 (cubo blanco), ambos compactos; **cada ronda lanza
+       las 2 estrategias EN PARALELO**, audita las que cambiaron algo y gana la mejor (publicable > score). Feedback y
+       coletillas de presión acortados a 1 línea (los párrafos largos paralizaban). Cliente: 6 rondas por pulsación
+       (~12 ediciones). NO volver a engordar los prompts del editor: la fidelidad la vigila la AUDITORÍA, no el prompt.
      · **Arquitectura editor-audaz / auditor-guardián (2026-07-03, 2ª iteración):** demasiadas cláusulas de "no cambies
        nada" hacían que el editor devolviera la foto casi intacta (fid 100 / reflejo 10 en 10 intentos). Ahora el prompt
        pone el CAMBIO primero («que parezca hecha en un cubo blanco»), la identidad va compacta, hay **2 estrategias**

@@ -56,7 +56,7 @@ export default function ProductForm({
 
   // Bandera de parada del bucle automático, por foto.
   const stopRef = useRef<Record<string, boolean>>({});
-  const CAP_PER_RUN = 10; // tope de intentos POR PULSACIÓN (protección coste/tiempo)
+  const CAP_PER_RUN = 6; // rondas por pulsación; cada ronda prueba 2 ediciones en paralelo
 
   // Persistencia del mejor intento por foto: si Safari descarta la pestaña
   // (habitual en móvil tras minutos en segundo plano), al volver se restaura
@@ -625,9 +625,10 @@ export default function ProductForm({
               ),
             )}
             <span className="w-full text-[11px] text-muted/80">
-              Reintenta sola hasta encontrar una publicable (hasta {CAP_PER_RUN} intentos
-              por tanda; «Seguir probando» da otra tanda). Puede tardar varios minutos:
-              mantén la pantalla encendida. Podrás pararlo cuando quieras.
+              Cada ronda prueba 2 ediciones con enfoques distintos y se queda con la
+              mejor; reintenta sola hasta encontrar una publicable (hasta {CAP_PER_RUN}{" "}
+              rondas por pulsación; «Seguir probando» da otra tanda). Puede tardar
+              varios minutos: mantén la pantalla encendida. Podrás pararlo cuando quieras.
             </span>
           </div>
         )}
