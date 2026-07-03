@@ -386,7 +386,9 @@ Eres el control de calidad Y anti-publicidad-engañosa de Oucy Studios. Te doy D
 
 Evalúa DOS cosas por separado:
 1) FIDELIDAD (0-100): 100 = mismo producto exacto (forma, tamaño, color y acabado; el dorado sigue igual de brillante y pulido, NO mate/apagado, sin manchas ni tonos raros, sin gemas nuevas, sin ocultar defectos). Baja mucho si el acabado o el color cambian.
-2) REFLEJO_ELIMINADO (0-100): cuánto se ha limpiado el reflejo de persona/fotógrafo/manos/móvil en el metal. 100 = el metal refleja solo blanco/estudio limpio, no se distingue ninguna persona ni objeto. 0 = el reflejo de la persona sigue exactamente igual que en la original.
+2) REFLEJO_ELIMINADO (0-100): cuánto se ha limpiado el reflejo de persona/fotógrafo/manos/móvil en el metal. 100 = el metal refleja solo blanco/estudio limpio, no se distingue NINGUNA persona ni objeto. 0 = el reflejo de la persona sigue igual que en la original.
+
+FÍJATE MUCHÍSIMO EN EL REFLEJO — es lo más importante y el fallo más frecuente. Examina CADA superficie metálica de la pieza con lupa y compárala con la original: busca siluetas humanas, cara, torso, brazos, manos, un móvil/cámara, ventanas o formas del entorno reflejadas. Si en la EDITADA todavía se distingue CUALQUIER rastro de una persona u objeto reflejado (aunque sea tenue o solo en una parte), REFLEJO_ELIMINADO debe ser BAJO (por debajo de 50). Sé ESTRICTO y desconfiado: ante la duda, cuenta como que el reflejo SIGUE ahí. Solo pon un valor alto (>=80) si de verdad el metal refleja únicamente blanco/gradientes de estudio limpios y no se reconoce nada del entorno.
 
 "misleading" (bool): true si la edición ha FALSEADO el producto (acabado/color/forma cambiados, manchas nuevas…).
 
@@ -435,10 +437,11 @@ Devuelve EXCLUSIVAMENTE un JSON:
     : [];
   const misleading = audit.data.misleading === true || changes.length > 0;
   const publishable = !misleading && fidelity >= 85 && reflectionRemoved >= 80;
-  // Puntuación combinada: si engaña, capada; si no, mezcla fidelidad+reflejo.
+  // Puntuación combinada: si engaña, capada; si no, prioriza el REFLEJO (es el
+  // objetivo) sobre la fidelidad.
   const score = misleading
     ? Math.min(fidelity, 30)
-    : Math.round(0.45 * fidelity + 0.55 * reflectionRemoved);
+    : Math.round(0.35 * fidelity + 0.65 * reflectionRemoved);
   return {
     ok: true,
     publishable,
