@@ -797,28 +797,26 @@ export default function ProductForm({
                     {cl.stopping ? "Parando… (acaba el intento en curso)" : "Parar"}
                   </button>
                 ) : (
-                  !cl.safe && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => runCleanup(src)}
-                        className="btn-outline text-sm"
-                      >
-                        ✨ Seguir probando
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          dismissCleanup(src);
-                          setTimeout(() => runCleanup(src), 50);
-                        }}
-                        title="Descarta el mejor acumulado y prueba desde cero"
-                        className="text-sm text-muted hover:text-gold-3"
-                      >
-                        Empezar de cero
-                      </button>
-                    </>
-                  )
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => runCleanup(src)}
+                      className="btn-outline text-sm"
+                    >
+                      {cl.safe ? "✨ Afinar más" : "✨ Seguir probando"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dismissCleanup(src);
+                        setTimeout(() => runCleanup(src), 50);
+                      }}
+                      title="Descarta el mejor acumulado y prueba desde cero"
+                      className="text-sm text-muted hover:text-gold-3"
+                    >
+                      Empezar de cero
+                    </button>
+                  </>
                 )}
                 <button
                   type="button"
