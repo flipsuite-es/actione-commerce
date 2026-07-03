@@ -617,7 +617,7 @@ export default function ProductForm({
         {/* Mejorar calidad (luz/contraste/nitidez): siempre disponible, sin claves */}
         {images.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span>✨ Mejorar calidad (luz, contraste, nitidez):</span>
+            <span>✨ Mejorar calidad (gratis: corrige luz, color y nitidez):</span>
             {images.map((src, i) =>
               enhance[src]?.url ? null : (
                 <button
@@ -664,8 +664,10 @@ export default function ProductForm({
                 </figure>
               </div>
               <p className="mt-2 text-xs text-muted">
-                Solo ajusta luz, contraste, color y nitidez de forma global. No cambia
-                la forma, el color ni el acabado del producto.
+                Auto-revelado: mide la foto y corrige la exposición (si está muy
+                brillante la baja, si está oscura la sube), neutraliza el color y da un
+                punto de contraste y nitidez. Ajuste global (sin IA, sin coste): no
+                cambia forma, color ni acabado del producto.
               </p>
               <div className="mt-2 flex flex-wrap gap-3">
                 <button

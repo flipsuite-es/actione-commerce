@@ -1044,10 +1044,48 @@ ${JSON.stringify(snapshot)}`;
   return { ok: true, text: r.data };
 }
 
-/** Mejora la CALIDAD de la foto sin tocar el producto: ajustes globales de luz,
- *  contraste, nitidez y un punto de color (como el "editar" del móvil). Es
- *  procesado determinista (sharp), NO IA generativa: no inventa píxeles ni
- *  cambia forma/color/acabado → nunca es publicidad engañosa. Sin claves. */
+/** Analiza una imagen (128px) para el auto-revelado: percentiles de luminancia,
+ *  % de quemado, y color medio de las luces altas (para balance de blancos). */
+async function analyzePhoto(buf: Buffer): Promise<{
+  p95: number;
+  clip: number;
+  bright: { r: number; g: number; b: number };
+}> {
+  const sharp = (await import("sharp")).default;
+  const s = 128;
+  const raw = await sharp(buf).resize(s, s, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  const n = s * s;
+  const lum = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    lum[i] = 0.299 * raw[i * 3] + 0.587 * raw[i * 3 + 1] + 0.114 * raw[i * 3 + 2];
+  }
+  const sorted = Array.from(lum).sort((a, b) => a - b);
+  const p95 = sorted[Math.min(n - 1, Math.floor(0.95 * n))];
+  // Color medio del 20% de píxeles más claros (fondo/luces): sirve para
+  // neutralizar la dominante de color (balance de blancos).
+  const idx = Array.from({ length: n }, (_, i) => i)
+    .sort((a, b) => lum[b] - lum[a])
+    .slice(0, Math.floor(n * 0.2));
+  let br = 0, bg = 0, bb = 0;
+  for (const i of idx) {
+    br += raw[i * 3];
+    bg += raw[i * 3 + 1];
+    bb += raw[i * 3 + 2];
+  }
+  br /= idx.length;
+  bg /= idx.length;
+  bb /= idx.length;
+  let clip = 0;
+  for (let i = 0; i < n; i++) if (lum[i] >= 252) clip++;
+  return { p95, clip: clip / n, bright: { r: br, g: bg, b: bb } };
+}
+
+/** Mejora la CALIDAD de la foto sin tocar el producto: AUTO-REVELADO adaptativo
+ *  (mide y corrige) — si está muy brillante/quemada la BAJA, si está oscura la
+ *  sube, neutraliza la dominante de color (balance de blancos), y da un punto de
+ *  contraste, saturación y nitidez. Procesado determinista (sharp), NO IA: son
+ *  ajustes GLOBALES de tono/color, no inventa píxeles ni cambia el producto →
+ *  nunca es publicidad engañosa. Sin claves, sin coste. */
 export async function enhancePhoto(
   imageUrl: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
@@ -1058,17 +1096,33 @@ export async function enhancePhoto(
     if (!resp.ok) return { ok: false, error: `No se pudo leer la imagen (${resp.status}).` };
     const inBuf = Buffer.from(await resp.arrayBuffer());
     const sharp = (await import("sharp")).default;
-    const out = await sharp(inBuf)
+    const base = await sharp(inBuf)
       .rotate()
       .resize(1400, 1400, { fit: "cover", position: "centre" })
-      // Ajustes GLOBALES (no cambian el producto): un poco más de luz, algo de
-      // contraste, un toque de saturación y nitidez. Suaves para no quemar los
-      // blancos (cojín/fondo suelen estar ya muy claros).
-      .modulate({ brightness: 1.04, saturation: 1.04 })
-      .linear(1.05, -6)
-      .sharpen()
-      .webp({ quality: 88 })
+      .webp({ quality: 92 })
       .toBuffer();
+
+    const a = await analyzePhoto(base);
+    // Balance de blancos: llevar las luces altas hacia gris neutro (topes suaves).
+    const wref = Math.max(a.bright.r, a.bright.g, a.bright.b);
+    const wb = (v: number) => Math.max(0.9, Math.min(1.12, wref / Math.max(1, v)));
+    const wr = wb(a.bright.r), wg = wb(a.bright.g), wbb = wb(a.bright.b);
+    // Exposición: llevar el p95 hacia ~244. Si hay quemado, tirar hacia abajo.
+    let exp = 244 / Math.max(1, a.p95);
+    if (a.clip > 0.5) exp = Math.min(exp, 0.82);
+    else if (a.clip > 0.25) exp = Math.min(exp, 0.9);
+    exp = Math.max(0.7, Math.min(1.3, exp));
+    // Contraste suave, COMBINADO con exposición+WB en un ÚNICO linear (sharp
+    // solo aplica el último .linear(): hay que fundirlos).
+    const c = 1.05;
+    const off = 128 * (1 - c);
+    const out = await sharp(base)
+      .linear([c * wr * exp, c * wg * exp, c * wbb * exp], [off, off, off])
+      .modulate({ saturation: 1.06 })
+      .sharpen({ sigma: 0.8 })
+      .webp({ quality: 90 })
+      .toBuffer();
+
     const path = `products/enh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
     const { error } = await supabase.storage
       .from(BUCKET)
