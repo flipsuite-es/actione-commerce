@@ -34,8 +34,11 @@ const FAL_MODEL =
  * Por eso el prompt del editor es UNO y corto: metal → estudio blanco. ------- */
 
 const METAL_PROMPT =
-  "This product photo shows polished metal jewelry whose mirror surface reflects the photographer and the room. Repaint what the METAL reflects: remove the person, their phone and hands, and every warm, olive or brown room patch from the metal surfaces, so the metal shows a clean white photo-studio reflection — bright white highlights blending into the metal's own light tone. " +
-  "Keep the piece itself exactly the same: shape, size, proportions, dents and hammered texture, same colour, same bright glossy mirror finish (never dull or matte). Keep the rest of the photo (cushion, shadow, background, framing) unchanged. Photorealistic — the same photograph.";
+  "Retouch the polished metal jewelry in this product photo.\n\n" +
+  "PROBLEM: the mirror-polished metal currently reflects the photographer (person, phone, hands) and the room (dark warm, olive or brown patches and recognisable shapes).\n\n" +
+  "TASK: repaint ONLY the reflections on the metal, so the piece looks like it was photographed inside a professional white softbox lightbox. IMPORTANT — polished gold inside a white lightbox does NOT look white or pale: it looks RICH, warm, saturated gold. Its surface shows smooth elegant gradients: large soft white-gold highlight bands from the softbox, blending into medium golden tones, with deeper amber-gold shading along the curved edges. No recognisable shapes, no human silhouette, no phone, no dark olive or brown room patches — just clean abstract gold-and-soft-white gradients, exactly like luxury jewelry catalogue photography. (If the metal is silver-tone, the same applies with silver: rich bright silver with soft white highlight bands, never flat grey.)\n\n" +
+  "KEEP EXACTLY: the piece's silhouette, size, position and orientation; every dent, hammered facet and surface irregularity; the earring posts and clasps; the metal's warm rich COLOUR — do not desaturate it, do not make it pale, whitish, silvery or washed out; the glossy mirror finish. Keep the cushion, shadow, background and framing untouched.\n\n" +
+  "The result must look like the SAME photograph of the SAME jewel, only with clean studio reflections.";
 
 export interface EditPromptOpts {
   seed?: number;
@@ -59,8 +62,8 @@ function buildMetalPrompt(opts: EditPromptOpts): string {
  *  una línea; los párrafos de presión largos paralizaban al modelo). */
 const BOLDNESS_SUFFIXES = [
   "",
-  "\n\nA previous attempt left the reflections unchanged — this time repaint them completely.",
-  "\n\nIMPORTANT: previous attempts barely changed the reflections. The mirrored person and room MUST be gone this time — repaint every reflection on the metal as white studio.",
+  "\n\nA previous attempt left the reflections unchanged — this time repaint them completely (rich gold with soft white-gold highlight bands).",
+  "\n\nIMPORTANT: previous attempts barely changed the reflections. The mirrored person and room MUST be gone this time — repaint every reflection on the metal as rich gold with soft white-gold studio highlights (never pale or washed out).",
 ];
 
 /** [LEGADO — el flujo principal usa la cola; queda como vía síncrona de

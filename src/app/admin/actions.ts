@@ -433,7 +433,7 @@ Rellena este checklist EXACTO. Devuelve SOLO el JSON, sin texto extra:
  "note_es": "una frase breve en español para el admin",
  "feedback_en": "one short instruction in ENGLISH for the image editor's NEXT attempt fixing what failed, or empty if nothing failed. IMPORTANT: the editor will re-edit the ORIGINAL photo from scratch (not the edited one), so phrase it about the original (e.g. 'the reflection on the left drop must become clean white; keep the gold bright and glossy')"
 }
-Significado: person_reflection = ¿en la EDITADA se ve persona/cara/brazos/manos/móvil reflejados en el metal? · room_reflection = ¿se ve la habitación/entorno reflejado (paredes, muebles, ventanas, manchas cálidas del entorno)? · silhouette = contorno/proporciones de cada pieza vs original · surface_details = facetas/martelé/bollos FÍSICOS conservados (según las claves de arriba) · metal_finish = ¿sigue siendo espejo brillante o se ha apagado/mateado? · metal_color = ¿el tono del oro es el mismo o ha virado (pálido/verdoso/oscuro)? · fastening_parts = postes/cierres/mariposas iguales · scene = ¿es la MISMA fotografía? Compara con lupa el ÁNGULO de cámara, el encuadre, la posición/orientación del cojín, sus arrugas y la sombra de la pieza. Si el encuadre/ángulo ha cambiado, el cojín está girado o recolocado, la composición es otra, o la imagen parece re-escenificada o un render sintético → "changed" (NO publicable). El aclarado/neutralizado del color ambiente (cojín y fondo más blancos, mismas arrugas pero más claras) SÍ es el objetivo y NO penaliza · elements_added_or_removed = ¿se añadió o quitó algo (gemas, piezas, objetos)?`;
+Significado: person_reflection = ¿en la EDITADA se ve persona/cara/brazos/manos/móvil reflejados en el metal? · room_reflection = ¿se ve la habitación/entorno reflejado (paredes, muebles, ventanas, manchas cálidas del entorno)? · silhouette = contorno/proporciones de cada pieza vs original · surface_details = facetas/martelé/bollos FÍSICOS conservados (según las claves de arriba) · metal_finish = ¿sigue siendo espejo brillante o se ha apagado/mateado? · metal_color = ¿el tono del oro es el mismo o ha virado? Cuenta como "shifted" también si sale notablemente más PÁLIDO, LAVADO, desaturado o blanquecino/plateado que el oro original — el dorado debe seguir siendo rico y cálido · fastening_parts = postes/cierres/mariposas iguales · scene = ¿es la MISMA fotografía? Compara con lupa el ÁNGULO de cámara, el encuadre, la posición/orientación del cojín, sus arrugas y la sombra de la pieza. Si el encuadre/ángulo ha cambiado, el cojín está girado o recolocado, la composición es otra, o la imagen parece re-escenificada o un render sintético → "changed" (NO publicable). El aclarado/neutralizado del color ambiente (cojín y fondo más blancos, mismas arrugas pero más claras) SÍ es el objetivo y NO penaliza · elements_added_or_removed = ¿se añadió o quitó algo (gemas, piezas, objetos)?`;
 
   const blocks =
     order === "orig-first"
@@ -918,7 +918,16 @@ export async function pollCleanup(
         await Promise.all(masksRes.data.slice(0, 4).map((u) => downloadBuf(u, 10_000)))
       ).filter((b): b is Buffer => !!b);
       if (maskBufs.length) {
-        const comp = await compositeJewelry(originalBuf, editedBuf, maskBufs);
+        // El «cubo blanco» se aplica SOLO a la escena (base original), ANTES de
+        // pegar la joya: así el oro conserva exactamente el tono que pintó el
+        // editor y no palidece con el aclarado del ambiente.
+        let base = originalBuf;
+        try {
+          base = await whiteAmbient(originalBuf);
+        } catch {
+          /* escena sin aclarar */
+        }
+        const comp = await compositeJewelry(base, editedBuf, maskBufs);
         if (comp) {
           finalBuf = comp;
           composed = true;
@@ -929,11 +938,13 @@ export async function pollCleanup(
     }
   }
 
-  // Ambiente «cubo blanco» determinista.
-  try {
-    finalBuf = await whiteAmbient(finalBuf);
-  } catch {
-    /* sin ajuste de ambiente */
+  // Sin composición: ambiente «cubo blanco» sobre la imagen completa.
+  if (!composed) {
+    try {
+      finalBuf = await whiteAmbient(finalBuf);
+    } catch {
+      /* sin ajuste de ambiente */
+    }
   }
 
   const up = await storeFinal(supabase, finalBuf);
