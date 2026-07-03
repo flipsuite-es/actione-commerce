@@ -385,7 +385,7 @@ async function auditEdit(
 Eres el control de calidad Y anti-publicidad-engañosa de Oucy Studios. Te doy DOS fotos de una joya: la ORIGINAL y una EDITADA por IA cuyo objetivo es que el metal pulido (tipo espejo) refleje solo BLANCO limpio de estudio en vez del fotógrafo/persona/móvil, SIN cambiar el producto.
 
 Evalúa DOS cosas por separado:
-1) FIDELIDAD (0-100): 100 = mismo producto exacto (forma, tamaño, color y acabado; el dorado sigue igual de brillante y pulido, NO mate/apagado, sin manchas ni tonos raros, sin gemas nuevas, sin ocultar defectos). Baja mucho si el acabado o el color cambian.
+1) FIDELIDAD (0-100): 100 = EXACTAMENTE el mismo producto real. Compara con MUCHÍSIMO detalle la FORMA y la SILUETA de cada pieza, las PROPORCIONES, y sobre todo la TEXTURA y el ACABADO de la superficie. Mira si la editada ha ALISADO, IDEALIZADO, SUAVIZADO o hecho MÁS PERFECTA/SIMÉTRICA la pieza: en la original puede haber zonas martelé/facetadas, planos, bollos, pequeñas irregularidades o imperfecciones reales; si en la editada esos detalles han desaparecido, la pieza se ve más lisa/perfecta, o cambia su forma/silueta/proporción, entonces la edición ha FALSEADO el producto → FIDELIDAD MUY BAJA (por debajo de 55) y "misleading": true. Baja mucho también si cambia el color o el acabado. Una foto "más bonita" pero que ya no representa la pieza real es ENGAÑOSA y NO vale.
 2) REFLEJO_ELIMINADO (0-100): cuánto se ha limpiado el reflejo del ENTORNO en el metal. 100 = el metal refleja SOLO blanco/estudio limpio (blanco y gradientes neutros), no se distingue NINGUNA persona NI la habitación. 0 = sigue reflejando la persona y/o la habitación como en la original.
 
 FÍJATE MUCHÍSIMO EN EL REFLEJO — es LO MÁS IMPORTANTE de todo. Examina CADA superficie metálica con lupa y compárala con la original: busca (a) siluetas humanas, cara, torso, brazos, manos, móvil/cámara; y (b) la HABITACIÓN reflejada — paredes, suelo, muebles, ventanas o cualquier zona/mancha de tono CÁLIDO, beige, marrón, oliva o verdoso que sea el entorno reflejado.
@@ -396,7 +396,7 @@ Solo pon REFLEJO_ELIMINADO alto (>=80) si el metal refleja ÚNICAMENTE blanco y 
 
 "misleading" (bool): true si la edición ha FALSEADO el producto (acabado/color/forma cambiados, manchas nuevas…).
 
-PUBLICABLE = FIDELIDAD >= 85 Y REFLEJO_ELIMINADO >= 80 Y no misleading.
+PUBLICABLE = FIDELIDAD >= 90 Y REFLEJO_ELIMINADO >= 80 Y no misleading (la pieza es idéntica a la real, sin idealizar).
 
 "feedback": UNA instrucción BREVE en INGLÉS para el editor de imagen en el PRÓXIMO intento, corrigiendo lo que falle. Ejemplos: "the person's reflection is still clearly visible on the right drop — replace those reflections with clean smooth white, keep the gold bright, glossy and warm, do NOT dull or darken it"; o si se apagó el metal: "keep the gold much brighter and mirror-glossy, do not desaturate".
 
@@ -440,7 +440,7 @@ Devuelve EXCLUSIVAMENTE un JSON:
     ? audit.data.changes.map((c) => String(c)).filter(Boolean).slice(0, 5)
     : [];
   const misleading = audit.data.misleading === true || changes.length > 0;
-  const publishable = !misleading && fidelity >= 85 && reflectionRemoved >= 80;
+  const publishable = !misleading && fidelity >= 90 && reflectionRemoved >= 80;
   // Puntuación combinada: si engaña, capada; si no, prioriza el REFLEJO (es el
   // objetivo) sobre la fidelidad.
   const score = misleading
