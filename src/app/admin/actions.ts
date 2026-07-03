@@ -321,13 +321,15 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown ni texto extra):
   };
 }
 
-/** Edita una imagen (quita reflejo) y la guarda en NUESTRO Storage. Un intento. */
+/** Edita una imagen (quita reflejo) y la guarda en NUESTRO Storage. Un intento.
+ *  `extra` = ajuste temporal de instrucción para este intento (de la auditoría). */
 async function editAndStore(
   supabase: Awaited<ReturnType<typeof requireAdmin>>,
   imageUrl: string,
   seed: number,
+  extra?: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const edited = await removeReflection(imageUrl, { seed });
+  const edited = await removeReflection(imageUrl, { seed, extra });
   if (!edited.ok) return { ok: false, error: edited.error };
   try {
     const resp = await fetch(edited.data);
@@ -359,36 +361,54 @@ async function editAndStore(
   }
 }
 
-/** Auditoría anti-engaño: Claude compara original vs editada y PUNTÚA la
- *  fidelidad (0–100) para poder quedarnos con el mejor intento. */
+/** Auditoría doble: mide FIDELIDAD al producto (no engañosa) Y cuánto se ha
+ *  ELIMINADO el reflejo, y genera FEEDBACK (en inglés) para afinar el siguiente
+ *  intento del editor. Publicable = fiel + reflejo limpio + no engañosa. */
 async function auditEdit(
   originalUrl: string,
   editedUrl: string,
 ): Promise<
-  | { ok: true; safe: boolean; score: number; changes: string[]; note: string }
+  | {
+      ok: true;
+      publishable: boolean;
+      score: number;
+      fidelity: number;
+      reflectionRemoved: number;
+      changes: string[];
+      note: string;
+      feedback: string;
+    }
   | { ok: false; error: string }
 > {
   const system = `${BRAND_RULES}
 
-Eres el control ANTI-PUBLICIDAD-ENGAÑOSA de Oucy Studios. Te doy DOS fotos del mismo producto de joyería: la primera es la ORIGINAL y la segunda es una versión EDITADA por IA para quitarle el reflejo del fotógrafo.
-Comprueba que la EDITADA muestra EXACTAMENTE el mismo producto real que la original: misma forma, mismo tamaño y proporciones, mismo color y tipo de acabado (un acero color dorado debe verse igual de brillante y pulido, NO mate ni apagado, NO más brillante ni como oro real; un color plata igual), sin manchas nuevas, sin gemas añadidas, sin ocultar arañazos o defectos reales de la pieza. Lo ÚNICO que puede haber cambiado es el contenido del reflejo/entorno y quizá el fondo.
-Puntúa además la FIDELIDAD del 0 al 100: 100 = idéntica al producto original salvo que el reflejo es más limpio; baja mucho si el acabado se ha vuelto mate/apagado, si hay manchas/tonos raros, o si cambia forma/color.
+Eres el control de calidad Y anti-publicidad-engañosa de Oucy Studios. Te doy DOS fotos de una joya: la ORIGINAL y una EDITADA por IA cuyo objetivo es que el metal pulido (tipo espejo) refleje solo BLANCO limpio de estudio en vez del fotógrafo/persona/móvil, SIN cambiar el producto.
+
+Evalúa DOS cosas por separado:
+1) FIDELIDAD (0-100): 100 = mismo producto exacto (forma, tamaño, color y acabado; el dorado sigue igual de brillante y pulido, NO mate/apagado, sin manchas ni tonos raros, sin gemas nuevas, sin ocultar defectos). Baja mucho si el acabado o el color cambian.
+2) REFLEJO_ELIMINADO (0-100): cuánto se ha limpiado el reflejo de persona/fotógrafo/manos/móvil en el metal. 100 = el metal refleja solo blanco/estudio limpio, no se distingue ninguna persona ni objeto. 0 = el reflejo de la persona sigue exactamente igual que en la original.
+
+"misleading" (bool): true si la edición ha FALSEADO el producto (acabado/color/forma cambiados, manchas nuevas…).
+
+PUBLICABLE = FIDELIDAD >= 85 Y REFLEJO_ELIMINADO >= 80 Y no misleading.
+
+"feedback": UNA instrucción BREVE en INGLÉS para el editor de imagen en el PRÓXIMO intento, corrigiendo lo que falle. Ejemplos: "the person's reflection is still clearly visible on the right drop — replace those reflections with clean smooth white, keep the gold bright, glossy and warm, do NOT dull or darken it"; o si se apagó el metal: "keep the gold much brighter and mirror-glossy, do not desaturate".
+
 Devuelve EXCLUSIVAMENTE un JSON:
-{"same_product": true, "only_reflection_changed": true, "score": 95, "changes": [], "safe_to_use": true, "note": "..."}
-- "score": número 0–100 de fidelidad al producto real.
-- "changes": lista breve en español de cualquier diferencia que afecte al PRODUCTO (vacía si solo cambió el reflejo/fondo).
-- "safe_to_use": true solo si es el mismo producto y no hay ningún riesgo de engaño.`;
+{"fidelity":90,"reflection_removed":20,"misleading":false,"changes":[],"note":"...","feedback":"..."}
+- "changes": diferencias en español que afecten al PRODUCTO (vacía si el producto está intacto).
+- "note": frase breve en español para el admin.`;
 
   const audit = await askJSON<{
-    same_product?: boolean;
-    only_reflection_changed?: boolean;
-    score?: number | string;
+    fidelity?: number | string;
+    reflection_removed?: number | string;
+    misleading?: boolean;
     changes?: unknown;
-    safe_to_use?: boolean;
     note?: string;
+    feedback?: string;
   }>({
     system,
-    maxTokens: 500,
+    maxTokens: 600,
     messages: [
       {
         role: "user",
@@ -404,21 +424,31 @@ Devuelve EXCLUSIVAMENTE un JSON:
   });
   if (!audit.ok) return { ok: false, error: audit.error };
 
+  const clamp = (v: unknown): number => {
+    const n = parseFloat(String(v ?? ""));
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
+  };
+  const fidelity = clamp(audit.data.fidelity);
+  const reflectionRemoved = clamp(audit.data.reflection_removed);
   const changes = Array.isArray(audit.data.changes)
     ? audit.data.changes.map((c) => String(c)).filter(Boolean).slice(0, 5)
     : [];
-  const safe =
-    audit.data.same_product === true &&
-    audit.data.safe_to_use === true &&
-    audit.data.only_reflection_changed !== false &&
-    changes.length === 0;
-  const rawScore = parseFloat(String(audit.data.score ?? ""));
-  const score = Number.isFinite(rawScore)
-    ? Math.max(0, Math.min(100, Math.round(rawScore)))
-    : safe
-      ? 90
-      : 40;
-  return { ok: true, safe, score, changes, note: String(audit.data.note || "") };
+  const misleading = audit.data.misleading === true || changes.length > 0;
+  const publishable = !misleading && fidelity >= 85 && reflectionRemoved >= 80;
+  // Puntuación combinada: si engaña, capada; si no, mezcla fidelidad+reflejo.
+  const score = misleading
+    ? Math.min(fidelity, 30)
+    : Math.round(0.45 * fidelity + 0.55 * reflectionRemoved);
+  return {
+    ok: true,
+    publishable,
+    score,
+    fidelity,
+    reflectionRemoved,
+    changes,
+    note: String(audit.data.note || ""),
+    feedback: String(audit.data.feedback || ""),
+  };
 }
 
 /** Quita el reflejo de una foto con IA y AUDITA el resultado (anti-publicidad
@@ -427,10 +457,13 @@ Devuelve EXCLUSIVAMENTE un JSON:
  *  `safe=false` y recomienda usar la original. La original NUNCA se borra. */
 type CleanupBest = {
   cleanedUrl: string;
-  safe: boolean;
+  safe: boolean; // publicable (fiel + reflejo limpio + no engañosa)
   score: number;
+  fidelity?: number;
+  reflectionRemoved?: number;
   changes: string[];
   note: string;
+  feedback?: string; // ajuste transitorio para el siguiente intento
 };
 
 export async function cleanupPhoto(
@@ -452,11 +485,14 @@ export async function cleanupPhoto(
 
   const MAX_ATTEMPTS = 2; // por tanda (el modelo MAX es lento); el cliente encadena tandas
   let best: CleanupBest | null = prevBest ?? null;
+  // Ajuste temporal de instrucción que arrastramos entre intentos (NO toca el
+  // prompt base guardado). Arranca del feedback previo si venimos de otra tanda.
+  let extra = prevBest?.feedback ?? "";
   let done = 0;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const seed = Math.floor(Math.random() * 1_000_000_000);
-    const stored = await editAndStore(supabase, imageUrl, seed);
+    const stored = await editAndStore(supabase, imageUrl, seed, extra || undefined);
     if (!stored.ok) {
       if (best) break; // conservamos el mejor que tuviéramos
       return { ok: false, error: stored.error };
@@ -479,24 +515,34 @@ export async function cleanupPhoto(
 
     const candidate: CleanupBest = {
       cleanedUrl: stored.url,
-      safe: audit.safe,
+      safe: audit.publishable,
       score: audit.score,
+      fidelity: audit.fidelity,
+      reflectionRemoved: audit.reflectionRemoved,
       changes: audit.changes,
       note: audit.note,
+      feedback: audit.feedback,
     };
     if (!best || candidate.score > best.score) best = candidate;
 
-    // Suficientemente buena: paramos para no gastar de más.
-    if (best.safe && best.score >= 97) break;
+    // La IA reajusta la instrucción para el SIGUIENTE intento (transitorio).
+    if (audit.feedback) extra = audit.feedback;
+
+    if (audit.publishable) {
+      best = candidate; // devolvemos la publicable
+      break;
+    }
   }
 
   if (!best) return { ok: false, error: "No se pudo generar ninguna versión." };
 
   const note = best.safe
-    ? best.note
-    : best.score >= 80
-      ? "Muy cerca, pero la auditoría aún ve algún cambio en el producto. Pulsa «Seguir probando» para intentar mejorarla."
-      : "La IA todavía no logra una versión fiel al acabado de esta pieza (muy espejada). Sigue probando o usa la foto original.";
+    ? best.note || "Publicable: producto fiel y reflejo limpio."
+    : (best.reflectionRemoved ?? 0) < 60
+      ? "La IA aún no ha quitado bien el reflejo. Sigue probando o usa la foto original."
+      : best.changes.length > 0
+        ? "Casi: el reflejo mejora pero la auditoría ve algún cambio en el producto. Sigue probando."
+        : "Muy cerca. Sigue probando para afinar el reflejo.";
 
   return { ok: true, ...best, note, attempts: done };
 }

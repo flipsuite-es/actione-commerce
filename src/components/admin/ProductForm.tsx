@@ -24,8 +24,11 @@ interface PhotoCleanup {
   cleanedUrl?: string;
   safe?: boolean;
   score?: number;
+  fidelity?: number;
+  reflectionRemoved?: number;
   changes?: string[];
   note?: string;
+  feedback?: string; // ajuste transitorio para el siguiente intento
   error?: string;
   attempts?: number; // acumulado (todas las tandas)
 }
@@ -68,8 +71,11 @@ export default function ProductForm({
             cleanedUrl: current.cleanedUrl,
             safe: current.safe ?? false,
             score: current.score ?? 0,
+            fidelity: current.fidelity,
+            reflectionRemoved: current.reflectionRemoved,
             changes: current.changes ?? [],
             note: current.note ?? "",
+            feedback: current.feedback,
           }
         : null;
     let total = current?.attempts ?? 0;
@@ -86,8 +92,11 @@ export default function ProductForm({
           cleanedUrl: r.cleanedUrl,
           safe: r.safe,
           score: r.score,
+          fidelity: r.fidelity,
+          reflectionRemoved: r.reflectionRemoved,
           changes: r.changes,
           note: r.note,
+          feedback: r.feedback,
         };
         const keepGoing = !r.safe && !stopRef.current[url] && total < AUTO_CAP;
         setCleanup((prev) => ({
@@ -521,9 +530,20 @@ export default function ProductForm({
             <div key={src} className="mt-3 rounded border border-gold/20 p-3">
               <p className="text-xs font-medium text-ink-soft">
                 Foto {i + 1} — revisa antes de usar
-                {typeof cl.score === "number" ? ` · fidelidad ${cl.score}/100` : ""}
+                {typeof cl.score === "number" ? ` · calidad ${cl.score}/100` : ""}
                 {cl.attempts && cl.attempts > 1 ? ` · ${cl.attempts} intentos` : ""}
               </p>
+              {(typeof cl.fidelity === "number" ||
+                typeof cl.reflectionRemoved === "number") && (
+                <p className="text-[11px] text-muted">
+                  {typeof cl.reflectionRemoved === "number"
+                    ? `Reflejo limpiado: ${cl.reflectionRemoved}/100`
+                    : ""}
+                  {typeof cl.fidelity === "number"
+                    ? ` · Fidelidad al producto: ${cl.fidelity}/100`
+                    : ""}
+                </p>
+              )}
               <div className="mt-2 grid grid-cols-2 gap-3">
                 <figure>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -569,8 +589,8 @@ export default function ProductForm({
 
               {cl.loading && (
                 <p className="mt-2 text-xs text-ink-soft">
-                  Probando automáticamente hasta lograr una publicable… (mejor hasta
-                  ahora: {cl.score ?? 0}/100)
+                  Probando automáticamente y afinando la instrucción en cada intento…
+                  (mejor calidad hasta ahora: {cl.score ?? 0}/100)
                 </p>
               )}
 

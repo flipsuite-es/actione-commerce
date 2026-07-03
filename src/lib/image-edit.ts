@@ -30,10 +30,13 @@ const REFLECTION_PROMPT =
   "Preserve EXACTLY the piece's shape, size and proportions, the warm sunlight and shadows, and the white pillow and background. Do NOT add gemstones and do NOT hide real scratches or dents. Photorealistic, minimal surgical edit — only the reflected content on the metal becomes clean white.";
 
 /** Devuelve la URL (temporal, de fal) de la imagen sin reflejo.
- *  `seed` opcional: varíala entre reintentos para obtener resultados distintos. */
+ *  `seed`: varíala entre reintentos para resultados distintos.
+ *  `extra`: ajuste TEMPORAL de instrucción para ESTE intento (viene de la
+ *  auditoría, para afinar). NO modifica `REFLECTION_PROMPT` (el prompt base
+ *  guardado): se concatena solo para esta llamada. */
 export async function removeReflection(
   imageUrl: string,
-  opts: { seed?: number } = {},
+  opts: { seed?: number; extra?: string } = {},
 ): Promise<AiResult<string>> {
   const key = process.env.FAL_KEY;
   if (!key) {
@@ -51,7 +54,9 @@ export async function removeReflection(
         authorization: `Key ${key}`,
       },
       body: JSON.stringify({
-        prompt: REFLECTION_PROMPT,
+        prompt: opts.extra
+          ? `${REFLECTION_PROMPT}\n\nADJUSTMENTS FOR THIS ATTEMPT (fix these specifically, keep everything else): ${opts.extra}`
+          : REFLECTION_PROMPT,
         image_url: imageUrl,
         // Guidance bajo = se mantiene más pegado a la foto original (menos
         // "invención" del acabado, que era lo que apagaba el dorado).
