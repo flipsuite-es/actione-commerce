@@ -60,7 +60,7 @@ export default function ProductForm({
 
   // Bandera de parada del bucle automático, por foto.
   const stopRef = useRef<Record<string, boolean>>({});
-  const CAP_PER_RUN = 3; // rondas por pulsación (1 edición Pro por ronda) — control de coste
+  const CAP_PER_RUN = 1; // UNA edición por pulsación: cada gasto lo decide el usuario
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   // Persistencia del mejor intento por foto: si Safari descarta la pestaña
@@ -484,8 +484,9 @@ export default function ProductForm({
       setUploading(false);
       e.target.value = "";
     }
-    // Control de calidad de cada foto subida (reflejos, borrosa, fondo…).
-    newUrls.forEach((u) => runCheck(u));
+    // Control de coste: el control de calidad con IA solo corre AUTOMÁTICO en
+    // la primera foto del producto (cada revisión es una llamada de pago).
+    if (wasEmpty && firstUrl) runCheck(firstUrl);
     // Autorrelleno: si es la primera foto y aún no hay nombre, sugiere con IA.
     if (wasEmpty && firstUrl && !name.trim()) {
       runSuggest(firstUrl);
@@ -704,11 +705,11 @@ export default function ProductForm({
               ),
             )}
             <span className="w-full text-[11px] text-muted/80">
-              La IA limpia el metal; después el sistema recorta la joya (máscara) y la
-              compone sobre TU foto original — el fondo y el cojín quedan intactos
-              píxel a píxel — y aplica un balance de blancos medido (sin IA). Máx.{" "}
-              {CAP_PER_RUN} ediciones por pulsación para controlar el gasto. Cada ronda
-              tarda 1-2 min: mantén la pantalla encendida.
+              Cada pulsación = <strong>UNA edición de pago</strong> (~0,15–0,25 €), sin
+              reintentos automáticos: tú decides cada gasto. La IA limpia el metal; el
+              sistema recorta la joya y la compone sobre TU foto original (fondo y
+              cojín intactos píxel a píxel) + balance de blancos medido (gratis).
+              Tarda 1-3 min: mantén la pantalla encendida.
             </span>
           </div>
         )}
@@ -843,7 +844,11 @@ export default function ProductForm({
                       onClick={() => runCleanup(src)}
                       className="btn-outline text-sm"
                     >
-                      {cl.safe ? "✨ Afinar más" : "✨ Seguir probando"}
+                      {cl.pendingTicket
+                        ? "✨ Retomar edición encargada (gratis)"
+                        : cl.safe
+                          ? "✨ Otra edición (de pago)"
+                          : "✨ Probar otra edición (de pago)"}
                     </button>
                     <button
                       type="button"
@@ -851,10 +856,10 @@ export default function ProductForm({
                         dismissCleanup(src);
                         setTimeout(() => runCleanup(src), 50);
                       }}
-                      title="Descarta el mejor acumulado y prueba desde cero"
+                      title="Descarta el mejor acumulado y encarga una edición nueva (de pago)"
                       className="text-sm text-muted hover:text-gold-3"
                     >
-                      Empezar de cero
+                      Empezar de cero (de pago)
                     </button>
                   </>
                 )}

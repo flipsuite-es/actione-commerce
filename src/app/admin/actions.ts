@@ -605,9 +605,10 @@ function scoreAudit(f: AuditFields): AuditResult {
   };
 }
 
-/** Auditoría doble en paralelo (inspector de reflejos + inspector de
- *  fidelidad), fusión pesimista y puntuación en código. Si hay buffers en
- *  memoria se pasan en base64 (evita que la API re-descargue las URLs). */
+/** Auditoría ÚNICA (control de coste: antes eran dos llamadas de visión en
+ *  paralelo). El checklist categórico + puntuación en código ya demostraron
+ *  calibración fiable con un solo auditor. Buffers en base64 si están en
+ *  memoria (evita que la API re-descargue las URLs). */
 async function auditEdit(
   originalUrl: string,
   editedUrl: string,
@@ -626,24 +627,14 @@ async function auditEdit(
     bufs?.edited && bufs.edited.buf.length < MAX_B64 && okTypes.includes(bufs.edited.type)
       ? imageBlockFromBuffer(bufs.edited.buf, bufs.edited.type)
       : imageBlock(editedUrl);
-  const [a, b] = await Promise.all([
-    auditEditOnce(
-      origImg,
-      editedImg,
-      "Eres un INSPECTOR DE REFLEJOS obsesivo de Oucy Studios: tu misión principal es encontrar cualquier rastro del fotógrafo, de personas o de la habitación reflejado en el metal (aunque rellenas el checklist completo).",
-      "orig-first",
-    ),
-    auditEditOnce(
-      origImg,
-      editedImg,
-      "Eres un INSPECTOR DE FIDELIDAD DE PRODUCTO obsesivo de Oucy Studios: tu misión principal es detectar si la pieza editada ya no es idéntica a la real — forma, textura física, acabado, color, cierres, escena (aunque rellenas el checklist completo).",
-      "edited-first",
-    ),
-  ]);
-  if (!a.ok && !b.ok) return { ok: false, error: a.error };
-  const fields =
-    a.ok && b.ok ? mergeAudits(a.data, b.data) : a.ok ? a.data : (b as { ok: true; data: AuditFields }).data;
-  return { ok: true, data: scoreAudit(fields) };
+  const a = await auditEditOnce(
+    origImg,
+    editedImg,
+    "Eres el INSPECTOR de calidad y anti-engaño de Oucy Studios: busca con la misma obsesión cualquier rastro del fotógrafo o de la habitación reflejado en el metal Y cualquier alteración de la pieza real (forma, textura física, acabado, color, cierres, escena).",
+    "orig-first",
+  );
+  if (!a.ok) return { ok: false, error: a.error };
+  return { ok: true, data: scoreAudit(a.data) };
 }
 
 /** Quita el reflejo de una foto con IA y AUDITA el resultado (anti-publicidad
@@ -699,14 +690,13 @@ export async function startCleanup(
   const prevRefl = prevBest?.reflectionRemoved;
   const boldness =
     prevRefl == null ? 0 : prevRefl <= 35 ? 2 : prevRefl <= 60 ? 1 : 0;
-  // Motor: el rápido por defecto (cola de segundos; la composición protege la
-  // escena). Se ESCALA al fuerte solo si el rápido se mostró tímido — su cola
-  // puede tardar minutos, y para eso está la reanudación de ticket.
-  const engine = boldness >= 2 ? "strong" : "fast";
+  // Motor FUERTE siempre: es el único que ha dado resultados publicables
+  // reales. Con UNA edición por pulsación, maximizar el acierto por disparo es
+  // más barato que iterar con el rápido. (Cola lenta → reanudación de ticket.)
   const sub = await submitReflectionEdit(
     imageUrl,
     { extra: extra || undefined, boldness },
-    engine,
+    "strong",
   );
   if (!sub.ok) return sub;
   return { ok: true, ticket: sub.data };

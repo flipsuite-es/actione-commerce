@@ -107,6 +107,13 @@ backoffice completos y funcionando.
        podía invocar las acciones de IA y gastar crédito).
      Modelo por defecto **Gemini 2.5 Flash Image "nano-banana"** (`fal-ai/gemini-25-flash-image/edit`, `image_urls[]`);
      Gemini 3 Pro es más lento (timeouts en Hobby) → `FAL_IMAGE_MODEL` solo con funciones largas. Kontext usa `image_url`.
+     · **6ª iteración (2026-07-03) — MODO AHORRO ESTRICTO (el usuario tiene poco presupuesto; ~30 € quemados en pruebas).**
+       REGLA: ningún gasto automático. **UNA edición por pulsación** (CAP_PER_RUN=1, sin bucle de reintentos — el bucle
+       era un incinerador de dinero cuando el modelo fallaba). Motor **Pro siempre** (único con publicables reales: a
+       un tiro, maximizar acierto es más barato que iterar con Flash). **Auditoría ÚNICA** (antes dual = 2×visión por
+       ronda). **QC automático solo en la 1ª foto** del producto. Botones con coste explícito («de pago», «retomar
+       edición encargada (gratis)»). fal quedó con saldo agotado («User is locked») → el usuario debe recargar poco
+       (5 € ≈ ~25 ediciones Pro) para cualquier edición nueva; la reanudación de tickets no re-cobra.
      · **5ª iteración (2026-07-03) — ARQUITECTURA FINAL: COMPOSICIÓN POR MÁSCARA.** La IA edita la imagen entera pero
        SOLO SE USA SU METAL: `pollCleanup` descarga en paralelo la editada + la original + la **máscara de la joya**
        (**SAM 3**, `fal-ai/sam-3/image`, prompt "jewelry", hasta 4 máscaras unidas) y **compone** el metal editado sobre
