@@ -83,8 +83,12 @@ export default function ProductForm({
     try {
       while (!stopRef.current[url] && total < AUTO_CAP) {
         const r = await cleanupPhoto(url, best);
-        if (!r.ok) {
-          setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: false, error: r.error } }));
+        if (!r || !r.ok) {
+          const msg =
+            r && !r.ok
+              ? r.error
+              : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.";
+          setCleanup((prev) => ({ ...prev, [url]: { ...prev[url], loading: false, error: msg } }));
           return;
         }
         total += r.attempts;
@@ -150,7 +154,16 @@ export default function ProductForm({
     setEnhance((prev) => ({ ...prev, [url]: { loading: true } }));
     try {
       const r = await enhancePhoto(url);
-      if (!r.ok) setEnhance((prev) => ({ ...prev, [url]: { error: r.error } }));
+      if (!r || !r.ok)
+        setEnhance((prev) => ({
+          ...prev,
+          [url]: {
+            error:
+              r && !r.ok
+                ? r.error
+                : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.",
+          },
+        }));
       else setEnhance((prev) => ({ ...prev, [url]: { url: r.url } }));
     } catch (err: any) {
       setEnhance((prev) => ({
@@ -190,7 +203,7 @@ export default function ProductForm({
     }));
     try {
       const r = await checkPhoto(url);
-      if (r.ok) {
+      if (r && r.ok) {
         setQc((prev) => ({
           ...prev,
           [url]: {
@@ -256,8 +269,12 @@ export default function ProductForm({
     try {
       const cats = categories.map((c) => ({ id: c.id, name: c.name }));
       const r = await suggestProduct(url, cats);
-      if (!r.ok) {
-        setAiMsg(r.error);
+      if (!r || !r.ok) {
+        setAiMsg(
+          r && !r.ok
+            ? r.error
+            : "La app se actualizó mientras probabas. Recarga la página y vuelve a intentarlo.",
+        );
         return;
       }
       if (r.name) setName(r.name);
